@@ -3499,14 +3499,50 @@
       "conditions": "",
       "geoLevel": "全公開（小数点4桁）",
       "registeredAt": "2025-07-04T07:16:00.000Z"
+    },
+    {
+      "id": "OIST-2026-0001",
+      "project": "サンゴ礁保全再生",
+      "collector": "沖縄はな子",
+      "institution": "沖縄環境科学センター",
+      "cruise": "",
+      "lat": "26.273525383819784",
+      "lng": "127.70911685378304",
+      "collectionDate": "2026-03-31T10:30",
+      "depth": "3",
+      "volume": "3",
+      "habitat": "礁池",
+      "locationName": "浦添市カーミージー",
+      "temp": "",
+      "salinity": "",
+      "visibility": "",
+      "filter": "Sterivex（0.22 μm）",
+      "preservative": "RNAlater",
+      "tempStorage": "-20℃",
+      "facility": "沖縄環境科学センター C棟",
+      "storageDate": "2026-03-31T16:00",
+      "expiry": "2031-03-31",
+      "aliquots": "",
+      "target": "有藻性サンゴ類 (ITS2)",
+      "sequencer": "未解析",
+      "accession": "",
+      "access": "条件付き（共著・報告義務）",
+      "abs": "国内EEZ内（制限なし）",
+      "conditions": "",
+      "geoLevel": "粗い精度（小数点1桁）",
+      "registeredAt": "2026-03-31T10:36:23.503Z"
     }
   ],
   "applications": [],
   "logs": [
     {
+      "ts": "2026-03-31T10:36:23.504Z",
+      "action": "入庫登録: OIST-2026-0001（浦添市カーミージー / 沖縄環境科学センター）"
+    },
+    {
       "ts": "2026-03-31T10:09:20.586Z",
       "action": "ダミーデータ生成: 100件追加（合計 100件）"
     }
   ],
-  "updatedAt": "2026-03-31T10:09:22.590Z"
+  "updatedAt": "2026-03-31T10:36:25.514Z"
 }
