@@ -233,7 +233,9 @@
   .tag { display: inline-block; padding: 2px 8px; background: var(--primary-light); color: var(--primary); border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px; }
 
   /* データ層インジケーター */
-  .storage-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 8px; border-radius: 4px; background: #fef3c7; color: #92400e; border: 1px solid #fde047; font-weight: 600; }
+  .storage-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 8px; border-radius: 4px; background: #fef3c7; color: #92400e; border: 1px solid #fde047; font-weight: 600; transition: background 0.4s, color 0.4s, border-color 0.4s; }
+  .sync-btn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; }
+  .sync-btn:hover { background: var(--primary-light); color: var(--primary-dark); }
 
   .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
   .empty-state .empty-icon { font-size: 40px; margin-bottom: 10px; }
@@ -280,7 +282,8 @@
   <div class="topbar">
     <div class="topbar-title" id="topbar-title">ダッシュボード</div>
     <div class="topbar-actions">
-      <span class="storage-badge" id="storage-mode-badge">💾 ブラウザ保存モード</span>
+      <span class="storage-badge" id="storage-mode-badge">💾 ブラウザ保存中</span>
+      <button class="sync-btn" onclick="DB.manualSync()" title="GitHubと今すぐ同期">🔄 同期</button>
       <div style="font-size:20px; cursor:pointer;" title="カート" onclick="showPage('search')">🛒<span id="cart-topbadge" style="display:none;font-size:11px;background:var(--danger);color:#fff;border-radius:999px;padding:1px 5px;vertical-align:top;margin-left:-4px;"></span></div>
     </div>
   </div>
@@ -648,20 +651,44 @@
       <div class="section-title">データ設定</div>
       <div class="section-sub">保管方式の確認・データのエクスポート／インポート・リセット</div>
 
+      <!-- GitHub Sync Settings -->
+      <div class="card" id="github-settings-card">
+        <div class="card-title">🔗 GitHub 同期設定</div>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
+          GitHub リポジトリをデータストレージとして使用することで、複数機関・複数デバイス間でデータを共有できます。
+        </p>
+        <div id="github-token-status" style="margin-bottom:14px;"></div>
+        <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-bottom:14px;">
+          <div style="flex:1; min-width:220px;">
+            <label style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px;">GitHub Personal Access Token (PAT)</label>
+            <input type="password" id="github-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+              style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:monospace; background:var(--bg);">
+          </div>
+          <button class="btn btn-primary" onclick="saveGitHubToken()" style="white-space:nowrap;">💾 保存して同期</button>
+          <button class="btn btn-danger" onclick="clearGitHubToken()" style="white-space:nowrap;">🗑️ トークン削除</button>
+        </div>
+        <details style="font-size:12px; color:var(--text-muted);">
+          <summary style="cursor:pointer; font-weight:600; margin-bottom:6px;">📖 PATの取得方法</summary>
+          <ol style="margin:8px 0 0 16px; line-height:1.8;">
+            <li>GitHub にログイン → 右上アイコン → <strong>Settings</strong></li>
+            <li>左メニュー最下部 → <strong>Developer settings</strong></li>
+            <li><strong>Personal access tokens → Tokens (classic)</strong></li>
+            <li><strong>Generate new token (classic)</strong> をクリック</li>
+            <li>Note に名前を入力、Expiration を設定、<strong>repo</strong> にチェック</li>
+            <li><strong>Generate token</strong> → 表示されたトークンをコピーして上に貼り付け</li>
+          </ol>
+          <p style="margin-top:8px;">⚠️ トークンはブラウザの localStorage に保存され、外部に送信されません（GitHub API との通信のみ）。</p>
+        </details>
+      </div>
+
       <div class="card">
         <div class="card-title">💾 現在のデータ保管モード</div>
         <div class="alert alert-warning">
           <div>
             <strong>ブラウザ保存モード（localStorage）</strong><br>
             データはこのブラウザ内に保存されます。別のPCやブラウザでは共有されません。<br>
-            将来的にサーバー連携モードへ切り替えることで、複数機関での共有が可能になります。
+            GitHub 同期設定でトークンを入力すると、複数機関での共有が可能になります。
           </div>
-        </div>
-        <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
-          <strong>将来の移行先（予定）：</strong><br>
-          ① Google スプレッドシート連携（アカウントがあればすぐ使える・複数機関で共有可能）<br>
-          ② ローカルサーバー（Python + SQLite）— 完全自前管理・ネット不要<br>
-          ③ クラウドDB（FastAPI + PostgreSQL）— 本番運用向け
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <button class="btn btn-primary" onclick="exportCSV()">📥 CSVエクスポート（サンプル）</button>
@@ -769,17 +796,34 @@
 const DB = {
   KEYS: { samples: 'edna_samples', applications: 'edna_applications', logs: 'edna_logs' },
 
+  // ── GitHub 設定（トークンはlocalStorageから取得） ──────────
+  GITHUB: {
+    get token() { return localStorage.getItem('edna_github_token') || ''; },
+    repo:  'meguusajp/edna-stock-center',
+    file:  'data.json',
+    branch:'main',
+  },
+  _ghSha: null,
+  _pushTimer: null,
+
+  // ── ローカル読み書き ───────────────────────────────────────
   getSamples() {
     try { return JSON.parse(localStorage.getItem(this.KEYS.samples) || '[]'); }
     catch(e) { return []; }
   },
-  saveSamples(data) { localStorage.setItem(this.KEYS.samples, JSON.stringify(data)); },
+  saveSamples(data) {
+    localStorage.setItem(this.KEYS.samples, JSON.stringify(data));
+    this._deferredPush('サンプルデータ更新');
+  },
 
   getApplications() {
     try { return JSON.parse(localStorage.getItem(this.KEYS.applications) || '[]'); }
     catch(e) { return []; }
   },
-  saveApplications(data) { localStorage.setItem(this.KEYS.applications, JSON.stringify(data)); },
+  saveApplications(data) {
+    localStorage.setItem(this.KEYS.applications, JSON.stringify(data));
+    this._deferredPush('申請データ更新');
+  },
 
   getLogs() {
     try { return JSON.parse(localStorage.getItem(this.KEYS.logs) || '[]'); }
@@ -800,6 +844,8 @@ const DB = {
 
   reset() {
     Object.values(this.KEYS).forEach(k => localStorage.removeItem(k));
+    this._ghSha = null;
+    this._deferredPush('データリセット');
   },
 
   generateId() {
@@ -810,7 +856,120 @@ const DB = {
       .map(s => parseInt(s.id.replace(prefix, '')) || 0);
     const next = nums.length ? Math.max(...nums) + 1 : 1;
     return prefix + String(next).padStart(4, '0');
-  }
+  },
+
+  // ── 同期ステータス表示 ────────────────────────────────────
+  setSyncStatus(status) {
+    const badge = document.getElementById('storage-mode-badge');
+    if (!badge) return;
+    const map = {
+      local:   ['💾 ブラウザ保存中',  '#fef3c7','#92400e','#fde047'],
+      syncing: ['🔄 GitHub同期中…',   '#d0eaf3','#064e63','#93c5fd'],
+      synced:  ['✅ GitHub同期済',    '#d1fae5','#065f46','#6ee7b7'],
+      error:   ['❌ 同期エラー',       '#fee2e2','#991b1b','#fca5a5'],
+    };
+    const [text, bg, color, border] = map[status] || map.local;
+    badge.textContent = text;
+    Object.assign(badge.style, { background: bg, color, borderColor: border });
+  },
+
+  // ── GitHub Pull（起動時・手動同期） ───────────────────────
+  async pull() {
+    if (!this.GITHUB.token) { this.setSyncStatus('local'); return false; }
+    this.setSyncStatus('syncing');
+    try {
+      const url = `https://api.github.com/repos/${this.GITHUB.repo}/contents/${this.GITHUB.file}`;
+      const r = await fetch(url, {
+        headers: {
+          'Authorization': `token ${this.GITHUB.token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Cache-Control': 'no-cache',
+        }
+      });
+      if (r.status === 404) { this.setSyncStatus('synced'); return false; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      this._ghSha = d.sha;
+      const json = JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g, '')))));
+      if (json.samples)      localStorage.setItem(this.KEYS.samples,      JSON.stringify(json.samples));
+      if (json.applications) localStorage.setItem(this.KEYS.applications, JSON.stringify(json.applications));
+      if (json.logs)         localStorage.setItem(this.KEYS.logs,         JSON.stringify(json.logs));
+      this.setSyncStatus('synced');
+      return true;
+    } catch(e) {
+      console.error('GitHub pull error:', e);
+      this.setSyncStatus('error');
+      return false;
+    }
+  },
+
+  // ── GitHub Push（保存のたびに遅延実行） ───────────────────
+  _deferredPush(msg) {
+    clearTimeout(this._pushTimer);
+    this._pushTimer = setTimeout(() => this.push(msg), 2000);
+  },
+
+  async push(message) {
+    if (!this.GITHUB.token) { this.setSyncStatus('local'); return false; }
+    this.setSyncStatus('syncing');
+    try {
+      const data = {
+        samples:      this.getSamples(),
+        applications: this.getApplications(),
+        logs:         this.getLogs(),
+        updatedAt:    new Date().toISOString(),
+      };
+      const jsonStr  = JSON.stringify(data, null, 2);
+      const content  = btoa(unescape(encodeURIComponent(jsonStr)));
+      const url      = `https://api.github.com/repos/${this.GITHUB.repo}/contents/${this.GITHUB.file}`;
+
+      // SHA が不明な場合は最新を取得してから上書き
+      if (!this._ghSha) {
+        const chk = await fetch(url, {
+          headers: { 'Authorization': `token ${this.GITHUB.token}`, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (chk.ok) { const cd = await chk.json(); this._ghSha = cd.sha; }
+      }
+
+      const body = { message: message || 'eDNA data update', content, branch: this.GITHUB.branch };
+      if (this._ghSha) body.sha = this._ghSha;
+
+      const r = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${this.GITHUB.token}`,
+          'Content-Type':  'application/json',
+          'Accept':        'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (r.ok) {
+        const rd = await r.json();
+        this._ghSha = rd.content.sha;
+        this.setSyncStatus('synced');
+        return true;
+      }
+      if (r.status === 409) { this._ghSha = null; return this.push(message); } // 競合→再試行
+      throw new Error('HTTP ' + r.status);
+    } catch(e) {
+      console.error('GitHub push error:', e);
+      this.setSyncStatus('error');
+      return false;
+    }
+  },
+
+  // ── 手動同期（ボタン押下時） ──────────────────────────────
+  async manualSync() {
+    const pulled = await this.pull();
+    if (pulled) {
+      showNotification('🔄 GitHubからデータを同期しました');
+      refreshDashboard();
+    } else {
+      await this.push('手動同期');
+      showNotification('✅ GitHubへ保存しました');
+    }
+  },
 };
 
 // ============================================================
@@ -861,6 +1020,7 @@ function showPage(name) {
   if (name === 'applications') renderApplications();
   if (name === 'search') { runSearch(); }
   if (name === 'reports') refreshReports();
+  if (name === 'datasettings') renderGitHubTokenStatus();
 }
 
 // ============================================================
@@ -1325,6 +1485,51 @@ function confirmReset() {
 }
 
 // ============================================================
+//  GITHUB TOKEN SETTINGS
+// ============================================================
+function renderGitHubTokenStatus() {
+  const el = document.getElementById('github-token-status');
+  if (!el) return;
+  const token = localStorage.getItem('edna_github_token') || '';
+  if (token) {
+    const masked = token.substring(0, 8) + '••••••••••••••••' + token.slice(-4);
+    el.innerHTML = `<div class="alert" style="background:#e8f5e9; border:1px solid #66bb6a; color:#2e7d32; padding:10px 14px; border-radius:6px;">
+      ✅ <strong>トークン設定済み</strong>：<code style="font-size:12px;">${masked}</code><br>
+      <span style="font-size:12px;">GitHub 同期が有効です。変更する場合は下のフィールドに新しいトークンを入力してください。</span>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="alert alert-warning" style="padding:10px 14px;">
+      ⚠️ <strong>トークン未設定</strong>：データはブラウザ内にのみ保存されます。
+    </div>`;
+  }
+}
+
+function saveGitHubToken() {
+  const input = document.getElementById('github-token-input');
+  const token = (input.value || '').trim();
+  if (!token) { showNotification('⚠️ トークンを入力してください', 'warn'); return; }
+  if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+    if (!confirm('入力値がGitHub PATの形式（ghp_ または github_pat_）と異なります。このまま保存しますか？')) return;
+  }
+  localStorage.setItem('edna_github_token', token);
+  input.value = '';
+  renderGitHubTokenStatus();
+  showNotification('🔗 トークンを保存しました。GitHubと同期中...');
+  DB.pull().then(ok => {
+    if (ok) showNotification('✅ GitHub から最新データを取得しました');
+    else DB.push('Initial sync from settings');
+  });
+}
+
+function clearGitHubToken() {
+  if (!confirm('GitHubトークンを削除します。以後、データはブラウザ内にのみ保存されます。続けますか？')) return;
+  localStorage.removeItem('edna_github_token');
+  renderGitHubTokenStatus();
+  DB.setSyncStatus('local');
+  showNotification('🗑️ トークンを削除しました');
+}
+
+// ============================================================
 //  FREEZER GRID
 // ============================================================
 function buildFreezerGrid() {
@@ -1358,34 +1563,127 @@ function showNotification(msg) {
 //  DUMMY DATA GENERATOR
 // ============================================================
 function generateDummyData() {
+  // ── 採集地点（25か所・多様な生息環境） ──────────────────────
   const locations = [
-    { name: '恩納村沖 礁斜面', lat: 26.4701, lng: 127.8701, habitat: '外礁斜面' },
-    { name: '石垣島 川平湾 礁池', lat: 24.4301, lng: 124.1501, habitat: '礁池' },
-    { name: '宮古島 八重干瀬 外礁', lat: 24.9201, lng: 125.2301, habitat: '外礁斜面' },
-    { name: '与那国島 外洋', lat: 24.4601, lng: 122.9901, habitat: '外洋域' },
-    { name: '慶良間諸島 座間味', lat: 26.2001, lng: 127.3001, habitat: '礁内' },
-    { name: '名護湾 沿岸', lat: 26.5901, lng: 127.9801, habitat: '沿岸域' },
-    { name: '沖縄本島 北部 大浦湾', lat: 26.6501, lng: 128.0401, habitat: '沿岸域' },
-    { name: '竹富島 周辺礁', lat: 24.3201, lng: 124.0801, habitat: '礁内' },
-    { name: '西表島 浦内川河口', lat: 24.2801, lng: 123.8201, habitat: '河川・湖沼' },
-    { name: '久米島 外礁斜面', lat: 26.3401, lng: 126.7901, habitat: '外礁斜面' },
-    { name: '多良間島 周辺海域', lat: 24.6601, lng: 124.7001, habitat: '礁池' },
-    { name: '南大東島 外洋', lat: 25.8301, lng: 131.2301, habitat: '外洋域' },
-    { name: '伊江島 礁斜面', lat: 26.7201, lng: 127.4701, habitat: '外礁斜面' },
-    { name: '粟国島 沿岸', lat: 26.5901, lng: 127.2301, habitat: '沿岸域' },
-    { name: '伊平屋島 北部', lat: 27.0401, lng: 127.9601, habitat: '礁内' },
+    { name: '恩納村沖 礁斜面',         lat: 26.4701, lng: 127.8701, habitat: '外礁斜面',   depthRange: [5,30] },
+    { name: '石垣島 川平湾 礁池',       lat: 24.4301, lng: 124.1501, habitat: '礁池',       depthRange: [1,10] },
+    { name: '宮古島 八重干瀬 外礁',     lat: 24.9201, lng: 125.2301, habitat: '外礁斜面',   depthRange: [5,40] },
+    { name: '与那国島 外洋 深部',       lat: 24.4601, lng: 122.9901, habitat: '外洋域',     depthRange: [50,300] },
+    { name: '慶良間諸島 座間味礁池',    lat: 26.2001, lng: 127.3001, habitat: '礁内',       depthRange: [1,15] },
+    { name: '名護湾 沿岸帯',           lat: 26.5901, lng: 127.9801, habitat: '沿岸域',     depthRange: [1,8] },
+    { name: '大浦湾 北部海域',          lat: 26.6501, lng: 128.0401, habitat: '沿岸域',     depthRange: [2,15] },
+    { name: '竹富島 白保礁',           lat: 24.3201, lng: 124.0801, habitat: '礁内',       depthRange: [1,5] },
+    { name: '西表島 浦内川河口域',      lat: 24.2801, lng: 123.8201, habitat: '河川・湖沼', depthRange: [0,3] },
+    { name: '久米島 外礁斜面',          lat: 26.3401, lng: 126.7901, habitat: '外礁斜面',   depthRange: [10,50] },
+    { name: '多良間島 礁池',            lat: 24.6601, lng: 124.7001, habitat: '礁池',       depthRange: [1,12] },
+    { name: '南大東島 崖下外洋',        lat: 25.8301, lng: 131.2301, habitat: '外洋域',     depthRange: [20,200] },
+    { name: '伊江島 礁斜面',            lat: 26.7201, lng: 127.4701, habitat: '外礁斜面',   depthRange: [5,30] },
+    { name: '粟国島 沿岸',             lat: 26.5901, lng: 127.2301, habitat: '沿岸域',     depthRange: [1,10] },
+    { name: '伊平屋島 北部礁内',        lat: 27.0401, lng: 127.9601, habitat: '礁内',       depthRange: [1,8] },
+    { name: '西表島 マングローブ林内',   lat: 24.3201, lng: 123.7601, habitat: 'マングローブ',depthRange: [0,2] },
+    { name: '宮古島 来間島北岸',        lat: 24.7301, lng: 125.2001, habitat: '沿岸域',     depthRange: [1,15] },
+    { name: '石垣島 底名溜池',          lat: 24.4101, lng: 124.1901, habitat: '河川・湖沼', depthRange: [0,5] },
+    { name: '沖縄本島 中城湾 内湾',     lat: 26.2601, lng: 127.8201, habitat: '沿岸域',     depthRange: [2,20] },
+    { name: '伊是名島 礁斜面',          lat: 26.9201, lng: 127.9101, habitat: '外礁斜面',   depthRange: [5,40] },
+    { name: 'チービシ礁 環礁内',        lat: 26.0701, lng: 127.3501, habitat: '礁池',       depthRange: [1,10] },
+    { name: '渡嘉敷島 南礁斜面',        lat: 26.1701, lng: 127.3701, habitat: '外礁斜面',   depthRange: [10,60] },
+    { name: '国頭村 比地川上流',        lat: 26.8101, lng: 128.2201, habitat: '河川・湖沼', depthRange: [0,2] },
+    { name: '津堅島 礁池',             lat: 26.2001, lng: 128.0501, habitat: '礁池',       depthRange: [1,8] },
+    { name: '沖縄本島 那覇港沖合',      lat: 26.1801, lng: 127.6201, habitat: '沿岸域',     depthRange: [5,25] },
   ];
-  const institutions = ['OIST（佐藤研究室）','琉球大学','沖縄環境科学センター','JAMSTEC','土木研究所'];
-  const collectors = ['佐藤 花子','田中 一郎','山本 次郎','金城 誠','仲間 美咲','上原 健','比嘉 直子'];
-  const projects = ['沖縄イノベーション・エコシステム共同研究','サンゴ礁環境DNAアトラス','JAMSTEC eDNA連携事業','沖縄県サンゴ礁モニタリング','水産資源eDNA調査'];
-  const targets = ['有藻性サンゴ類 (ITS2)','魚類・甲殻類 (12S rRNA)','全生物（メタバーコーディング）','海藻・植物プランクトン','細菌（16S rRNA）'];
-  const filters = ['Sterivex（0.22 μm）','GFF（0.7 μm）','PolycarbonatePC（0.45 μm）'];
-  const preservatives = ['RNAlater','エタノール（99%）','緩衝液なし（乾燥）'];
-  const temps = ['-80℃（超低温）','-80℃（超低温）','-20℃'];
-  const facilities = ['OIST B棟 冷凍室 FZ-03','OIST B棟 冷凍室 FZ-04','琉大 理学部 FZ-01','沖縄環境科学センター C棟'];
-  const sequencers = ['未解析','Illumina MiSeq','Illumina MiSeq','Illumina NovaSeq','Oxford Nanopore'];
-  const accesses = ['提供可（条件なし）','提供可（条件なし）','提供可（条件なし）','条件付き（共著・報告義務）','要審査（希少種・ABS関連）'];
-  const absOptions = ['国内EEZ内（制限なし）','国内EEZ内（制限なし）','国内EEZ内（制限なし）','外国EEZ（ABS申告必要）'];
+
+  // ── 機関・採集者 ──────────────────────────────────────────
+  const institutions = [
+    'OIST（佐藤研究室）','OIST（海洋ゲノミクスユニット）',
+    '琉球大学','沖縄環境科学センター','JAMSTEC','土木研究所',
+  ];
+  const collectors = [
+    '佐藤 花子','田中 一郎','山本 次郎','金城 誠','仲間 美咲',
+    '上原 健','比嘉 直子','島袋 光','玉城 あや','大城 誠司',
+    'Smith, A.','Tanaka, K.',
+  ];
+  const instPrefixes = {
+    'OIST（佐藤研究室）':      'OIST',
+    'OIST（海洋ゲノミクスユニット）': 'OIST',
+    '琉球大学':                'RYU',
+    '沖縄環境科学センター':     'OES',
+    'JAMSTEC':                'JAM',
+    '土木研究所':              'PWR',
+  };
+
+  // ── プロジェクト・調査クルーズ名 ────────────────────────────
+  const projects = [
+    '沖縄イノベーション・エコシステム共同研究',
+    'サンゴ礁環境DNAアトラス（JST)',
+    'JAMSTEC eDNA連携事業',
+    '沖縄県サンゴ礁モニタリング事業',
+    '水産資源eDNA広域調査',
+    '琉球列島マングローブ生態系評価',
+    '内水面魚類eDNAモニタリング',
+    '気候変動海洋生物多様性影響評価',
+  ];
+  const cruiseNames = [
+    '白鳳丸 KH-24-1','新青丸 KS-24-3','鶴洋丸','島巡り調査航海 2024',
+    'サンゴ礁調査クルーズ 2023','eDNA 広域サンプリング 2022','','','','',
+  ];
+
+  // ── 解析対象・フィルター・保存 ───────────────────────────────
+  const targets = [
+    '有藻性サンゴ類 (ITS2)',
+    '魚類・甲殻類 (12S rRNA)',
+    '全生物（メタバーコーディング 18S）',
+    '海藻・植物プランクトン (rbcL)',
+    '細菌群集（16S rRNA V3-V4）',
+    '頭足類・軟体動物 (COI)',
+    '底生無脊椎動物（18S V1-V2）',
+    '環境DNA定量（ddPCR・ウミガメ）',
+  ];
+  const filters = [
+    'Sterivex（0.22 μm）','Sterivex（0.45 μm）',
+    'GFF（0.7 μm）','Polycarbonate（0.4 μm）',
+    'Cellulose acetate（0.22 μm）',
+  ];
+  const preservatives = [
+    'RNAlater（1:1 v/v）','エタノール（99%）',
+    'エタノール（70%）','Longmire緩衝液','緩衝液なし（乾燥・即冷凍）',
+  ];
+  const temps = ['-80℃（超低温）','-80℃（超低温）','-80℃（超低温）','-20℃'];
+  const facilities = [
+    'OIST B棟 冷凍室 FZ-03','OIST B棟 冷凍室 FZ-04',
+    'OIST B棟 冷凍室 FZ-07（-80℃専用）',
+    '琉大 理学部 FZ-01','沖縄環境科学センター C棟 FZ-02',
+    'JAMSTEC 横須賀 -80℃ライブラリ','土木研究所 沖縄実験所 FZ-01',
+  ];
+  const sequencers = [
+    '未解析','未解析','未解析',
+    'Illumina MiSeq（2×300bp）',
+    'Illumina MiSeq（2×300bp）',
+    'Illumina NovaSeq 6000',
+    'Oxford Nanopore MinION',
+    'PacBio Sequel IIe',
+  ];
+  const accesses = [
+    '提供可（条件なし）','提供可（条件なし）','提供可（条件なし）',
+    '条件付き（共著・謝辞記載義務）',
+    '条件付き（事前報告義務）',
+    '要審査（希少種・ABS関連）',
+  ];
+  const absOptions = [
+    '国内EEZ内（制限なし）','国内EEZ内（制限なし）',
+    '国内EEZ内（制限なし）','国内EEZ内（制限なし）',
+    '外国EEZ（ABS申告必要）',
+  ];
+  // 特記事項テンプレート（一部サンプルに追加）
+  const noteTemplates = [
+    '台風通過48h後に採集。濁度高く可視度3m以下。',
+    'サンゴ白化イベント（グレード2）観察地点付近。',
+    '希少種モニタリング地点。座標精度は海域レベルで公開。',
+    '反復採集地点（同座標での年次モニタリング）。',
+    '潮位干潮時のみアクセス可能。採集時刻に注意。',
+    '底層水採集（水深10m直上）。通常の表層採集とは区別すること。',
+    '採集時に漁業者の定置網が近接。水質への影響要確認。',
+    '',  '',  '',  '',  '',  '',
+  ];
 
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
   const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
@@ -1394,75 +1692,88 @@ function generateDummyData() {
   const existing = DB.getSamples();
   const existingIds = new Set(existing.map(s => s.id));
   const newSamples = [];
-  const instPrefixes = {
-    'OIST（佐藤研究室）': 'OIST',
-    '琉球大学': 'RYU',
-    '沖縄環境科学センター': 'OES',
-    'JAMSTEC': 'JAM',
-    '土木研究所': 'PWR',
-  };
 
-  // 年ごとの連番管理
+  // 年ごとの連番管理（機関プレフィックス×年）
   const yearCounters = {};
   [...existing].forEach(s => {
-    const m = s.id && s.id.match(/^[A-Z]+-(\d{4})-(\d+)$/);
-    if (m) { const k = m[1]; yearCounters[k] = Math.max(yearCounters[k]||0, parseInt(m[2])); }
+    const m = s.id && s.id.match(/^([A-Z]+)-(\d{4})-(\d+)$/);
+    if (m) {
+      const k = m[1] + '-' + m[2];
+      yearCounters[k] = Math.max(yearCounters[k] || 0, parseInt(m[3]));
+    }
   });
 
+  // パターン配分：年・季節・生息場所を均等に
   for (let i = 0; i < 100; i++) {
-    const inst = pick(institutions);
-    const prefix = instPrefixes[inst] || 'SMPL';
-    const year = randInt(2021, 2024);
-    yearCounters[year] = (yearCounters[year] || 0) + 1;
-    const id = prefix + '-' + year + '-' + String(yearCounters[year]).padStart(4, '0');
-    if (existingIds.has(id)) { yearCounters[year]++; continue; }
+    const inst    = pick(institutions);
+    const prefix  = instPrefixes[inst] || 'SMPL';
+    const year    = [2021,2021,2022,2022,2023,2023,2024,2024,2024,2025][i % 10];
+    const ctrKey  = prefix + '-' + year;
+    yearCounters[ctrKey] = (yearCounters[ctrKey] || 0) + 1;
+    const id = prefix + '-' + year + '-' + String(yearCounters[ctrKey]).padStart(4, '0');
+    if (existingIds.has(id)) { yearCounters[ctrKey]++; continue; }
 
-    const loc = pick(locations);
-    const latJitter = randFloat(-0.05, 0.05, 4);
-    const lngJitter = randFloat(-0.05, 0.05, 4);
-    const month = randInt(1, 12);
-    const day = randInt(1, 28);
-    const hour = randInt(7, 15);
+    const loc   = locations[i % locations.length];   // 全地点を均等にカバー
+    const latJ  = randFloat(-0.03, 0.03, 4);
+    const lngJ  = randFloat(-0.03, 0.03, 4);
+
+    // 季節パターン（6〜10月が多い）
+    const monthWeights = [1,1,2,2,3,4,5,5,5,4,2,1];
+    let month = 0, cumW = 0, rW = randInt(1, monthWeights.reduce((a,b)=>a+b));
+    for (let mi = 0; mi < 12; mi++) { cumW += monthWeights[mi]; if (rW <= cumW) { month = mi+1; break; } }
+    const day  = randInt(1, 28);
+    const hour = randInt(6, 16);
     const collDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}T${String(hour).padStart(2,'0')}:${String(randInt(0,59)).padStart(2,'0')}`;
-    const expiryYear = year + randInt(2, 5);
-    const expiry = `${expiryYear}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    // 一部を期限接近にする
+
+    // 深度は生息環境に合わせた範囲から
+    const depth = randInt(...loc.depthRange);
+
+    // 保存期限
     const isExpiring = i < 8;
-    const expiryFinal = isExpiring
-      ? (() => { const d = new Date(); d.setDate(d.getDate() + randInt(10, 80)); return d.toISOString().split('T')[0]; })()
-      : expiry;
+    let expiry;
+    if (isExpiring) {
+      const d = new Date(); d.setDate(d.getDate() + randInt(10, 85)); expiry = d.toISOString().split('T')[0];
+    } else {
+      const ey = year + randInt(2, 6);
+      expiry = `${ey}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    }
 
     const seq = pick(sequencers);
+    const hasAccession = seq !== '未解析' && Math.random() > 0.3;
+
     newSamples.push({
       id,
-      project: pick(projects),
-      collector: pick(collectors),
+      project:     pick(projects),
+      collector:   pick(collectors),
       institution: inst,
-      cruise: Math.random() > 0.5 ? `${loc.name.split(' ')[0]}調査クルーズ ${year}` : '',
-      lat: parseFloat((loc.lat + latJitter).toFixed(4)),
-      lng: parseFloat((loc.lng + lngJitter).toFixed(4)),
+      cruise:      pick(cruiseNames),
+      lat:         parseFloat((loc.lat + latJ).toFixed(4)),
+      lng:         parseFloat((loc.lng + lngJ).toFixed(4)),
       collectionDate: collDate,
-      depth: randInt(1, 30),
-      volume: randFloat(0.5, 4.0, 1),
-      habitat: loc.habitat,
+      depth,
+      volume:      randFloat(0.5, 5.0, 1),
+      habitat:     loc.habitat,
       locationName: loc.name,
-      temp: randFloat(24.0, 30.5, 1),
-      salinity: randFloat(33.0, 35.5, 1),
-      visibility: randInt(5, 30),
-      filter: pick(filters),
-      preservative: pick(preservatives),
+      temp:        randFloat(23.5, 31.0, 1),
+      salinity:    randFloat(32.5, 36.0, 1),
+      visibility:  loc.habitat === '河川・湖沼' ? randInt(0, 5) : randInt(3, 30),
+      turbidity:   pick(['低（良好）','中','高（濁水）','不明']),
+      weather:     pick(['晴れ','曇り','曇り','晴れ','晴れ','小雨']),
+      filter:      pick(filters),
+      filterCount: randInt(1, 3),
+      preservative:pick(preservatives),
       tempStorage: pick(temps),
-      facility: pick(facilities),
+      facility:    pick(facilities),
       storageDate: collDate,
-      expiry: expiryFinal,
-      aliquots: randInt(3, 15),
-      target: pick(targets),
-      sequencer: seq,
-      accession: seq !== '未解析' && Math.random() > 0.4 ? 'DRR' + randInt(100000, 999999) : '',
-      access: pick(accesses),
-      abs: pick(absOptions),
-      conditions: '',
-      geoLevel: '全公開（小数点4桁）',
+      expiry,
+      aliquots:    randInt(3, 20),
+      target:      pick(targets),
+      sequencer:   seq,
+      accession:   hasAccession ? 'DRR' + randInt(100000, 999999) : '',
+      access:      pick(accesses),
+      abs:         pick(absOptions),
+      conditions:  pick(noteTemplates),
+      geoLevel:    loc.habitat === '河川・湖沼' ? '海域レベル（希少種配慮）' : '全公開（小数点4桁）',
       registeredAt: new Date(collDate).toISOString(),
     });
     existingIds.add(id);
@@ -1478,9 +1789,16 @@ function generateDummyData() {
 // ============================================================
 //  INIT
 // ============================================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('f-event-id').value = DB.generateId();
   showPage('dashboard');
+  // GitHub からデータを取得（起動時自動同期）
+  const pulled = await DB.pull();
+  if (pulled) {
+    showNotification('🔄 GitHubからデータを同期しました');
+    refreshDashboard();
+    document.getElementById('f-event-id').value = DB.generateId();
+  }
 });
 </script>
 </body>
