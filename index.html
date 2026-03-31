@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- =====================================================
+     パスワード保護スクリプト（ページ読込直後に実行）
+     パスワードを変更するには下記 PASS_HASH の値を
+     新しいパスワードのSHA-256ハッシュに差し替えてください。
+     現在のパスワード: edna2025
+     ===================================================== -->
+<script>
+(function(){
+  // SHA-256 hash of "edna2025"
+  const PASS_HASH = '87d7c6e9c66f879feaf97953322bf77881fb137fc03b880f9847fdf260740234';
+
+  async function sha256(msg) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  function showLock() {
+    document.documentElement.style.visibility = 'hidden';
+    const div = document.createElement('div');
+    div.id = '__lock__';
+    div.innerHTML = `
+      <style>
+        #__lock__ { position:fixed;inset:0;background:#064e63;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:'Meiryo',sans-serif; }
+        #__lock__ .box { background:#fff;border-radius:16px;padding:40px 48px;text-align:center;width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+        #__lock__ h2 { color:#064e63;font-size:16px;margin-bottom:4px; }
+        #__lock__ p { color:#5a7080;font-size:12px;margin-bottom:24px; }
+        #__lock__ input { width:100%;padding:12px;border:1.5px solid #d1dde6;border-radius:8px;font-size:15px;margin-bottom:12px;outline:none;text-align:center;letter-spacing:0.15em; }
+        #__lock__ input:focus { border-color:#0a6e8a; }
+        #__lock__ button { width:100%;padding:12px;background:#0a6e8a;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer; }
+        #__lock__ button:hover { background:#064e63; }
+        #__lock__ .err { color:#c0392b;font-size:12px;margin-top:8px;min-height:18px; }
+        #__lock__ .logo { font-size:32px;margin-bottom:12px; }
+      </style>
+      <div class="box">
+        <div class="logo">🌊</div>
+        <h2>海洋環境DNAストックセンター</h2>
+        <p>OIST・沖縄県 — アクセスにはパスワードが必要です</p>
+        <input type="password" id="__pw__" placeholder="パスワードを入力" autocomplete="current-password">
+        <button id="__pwbtn__">入室する</button>
+        <div class="err" id="__pwerr__"></div>
+      </div>`;
+    document.body ? document.body.appendChild(div) : document.addEventListener('DOMContentLoaded', ()=>document.body.appendChild(div));
+
+    async function check() {
+      const val = document.getElementById('__pw__').value;
+      if (!val) return;
+      const h = await sha256(val);
+      if (h === PASS_HASH) {
+        sessionStorage.setItem('__edna_auth__','1');
+        document.getElementById('__lock__').remove();
+        document.documentElement.style.visibility = '';
+      } else {
+        document.getElementById('__pwerr__').textContent = 'パスワードが違います';
+        document.getElementById('__pw__').value = '';
+      }
+    }
+    document.addEventListener('DOMContentLoaded', ()=>{
+      document.getElementById('__pwbtn__').onclick = check;
+      document.getElementById('__pw__').onkeydown = e => { if(e.key==='Enter') check(); };
+      document.documentElement.style.visibility = '';
+    });
+  }
+
+  if (sessionStorage.getItem('__edna_auth__') === '1') {
+    // 認証済み — そのまま表示
+  } else {
+    showLock();
+  }
+})();
+</script>
+<title>OIST・沖縄県 海洋環境DNAストックセンター</title>
+<style>
+  :root {
+    --primary: #0a6e8a;
+    --primary-light: #d0eaf3;
+    --primary-dark: #064e63;
+    --accent: #00a878;
+    --accent-light: #d0f5eb;
+    --warning: #e07b39;
+    --danger: #c0392b;
+    --bg: #f4f8fb;
+    --card: #ffffff;
+    --border: #d1dde6;
+    --text: #1c2e3a;
+    --text-muted: #5a7080;
+    --sidebar-w: 220px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); background: var(--primary-dark); color: #fff; display: flex; flex-direction: column; flex-shrink: 0; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; }
+  .sidebar-logo { padding: 20px 16px 14px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+  .sidebar-logo .logo-title { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; line-height: 1.4; color: rgba(255,255,255,0.9); }
+  .sidebar-logo .logo-sub { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  .sidebar-nav { flex: 1; padding: 10px 0; overflow-y: auto; }
+  .nav-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: rgba(255,255,255,0.4); padding: 14px 16px 4px; text-transform: uppercase; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer; transition: background 0.15s; color: rgba(255,255,255,0.75); font-size: 13px; border-left: 3px solid transparent; }
+  .nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .nav-item.active { background: rgba(255,255,255,0.12); color: #fff; border-left-color: var(--accent); font-weight: 600; }
+  .nav-item .icon { width: 18px; text-align: center; flex-shrink: 0; }
+  .sidebar-footer { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.12); font-size: 11px; color: rgba(255,255,255,0.4); }
+  .user-badge { background: rgba(255,255,255,0.12); border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; }
+  .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .user-info { font-size: 11px; color: rgba(255,255,255,0.8); line-height: 1.3; }
+  .user-role { font-size: 10px; color: rgba(255,255,255,0.45); }
+
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; padding: 0 24px; height: 56px; position: sticky; top: 0; z-index: 50; }
+  .topbar-title { font-size: 16px; font-weight: 700; color: var(--primary-dark); flex: 1; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .content { padding: 24px; flex: 1; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-accent { background: var(--accent); color: #fff; }
+  .btn-accent:hover { background: #008060; }
+  .btn-outline { background: #fff; color: var(--primary); border: 1px solid var(--primary); }
+  .btn-outline:hover { background: var(--primary-light); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-gray { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+  .btn-gray:hover { background: #e2e8f0; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 700; color: var(--primary-dark); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+  .stat-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; position: relative; overflow: hidden; }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--primary); }
+  .stat-card.green::before { background: var(--accent); }
+  .stat-card.orange::before { background: var(--warning); }
+  .stat-card.red::before { background: var(--danger); }
+  .stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+  .stat-value { font-size: 32px; font-weight: 800; color: var(--primary-dark); line-height: 1.1; margin: 6px 0 2px; }
+  .stat-value.green { color: var(--accent); }
+  .stat-value.orange { color: var(--warning); }
+  .stat-value.red { color: var(--danger); }
+  .stat-sub { font-size: 11px; color: var(--text-muted); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-orange { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-gray { background: #f1f5f9; color: #475569; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f8fafc; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 12px 14px; border-bottom: 1px solid #f0f4f7; font-size: 13px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; display: block; }
+  .form-label .required { color: var(--danger); margin-left: 3px; }
+  .form-input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; color: var(--text); background: #fff; transition: border-color 0.15s; }
+  .form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+  .form-input.error { border-color: var(--danger); }
+  select.form-input { cursor: pointer; }
+  textarea.form-input { resize: vertical; min-height: 80px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .field-error { font-size: 11px; color: var(--danger); margin-top: 3px; }
+
+  .section-title { font-size: 18px; font-weight: 800; color: var(--primary-dark); margin-bottom: 4px; }
+  .section-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+
+  .search-bar-wrapper { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .search-bar-wrapper .form-group { margin-bottom: 0; flex: 1; min-width: 120px; }
+
+  .result-card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 14px; transition: box-shadow 0.15s, border-color 0.15s; }
+  .result-card:hover { border-color: var(--primary); box-shadow: 0 2px 10px rgba(10,110,138,0.1); }
+  .result-card .rc-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .result-card .rc-body { flex: 1; }
+  .result-card .rc-id { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 2px; }
+  .result-card .rc-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .result-card .rc-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 12px; flex-wrap: wrap; }
+  .result-card .rc-actions { display: flex; gap: 6px; align-items: center; }
+
+  .wizard-steps { display: flex; gap: 0; margin-bottom: 24px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .wizard-step { flex: 1; padding: 12px; text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); background: #f8fafc; border-right: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+  .wizard-step:last-child { border-right: none; }
+  .wizard-step.active { background: var(--primary); color: #fff; }
+  .wizard-step.done { background: var(--accent-light); color: var(--accent); }
+  .wizard-step .step-num { font-size: 18px; font-weight: 800; display: block; }
+
+  .freezer-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-top: 10px; }
+  .freezer-cell { aspect-ratio: 1; border-radius: 4px; cursor: pointer; border: 1px solid rgba(0,0,0,0.05); transition: transform 0.1s; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.9); }
+  .freezer-cell:hover { transform: scale(1.15); z-index: 10; }
+  .freezer-cell.full { background: var(--primary); }
+  .freezer-cell.partial { background: var(--accent); }
+  .freezer-cell.empty { background: #e2e8f0; color: #94a3b8; }
+  .freezer-cell.expiring { background: var(--warning); }
+  .freezer-legend { display: flex; gap: 14px; font-size: 11px; margin-top: 8px; flex-wrap: wrap; }
+  .freezer-legend span { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 12px; width: 640px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  .modal-header { padding: 20px 24px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-header h3 { font-size: 16px; font-weight: 700; color: var(--primary-dark); }
+  .modal-body { padding: 20px 24px; }
+  .modal-footer { padding: 14px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .modal-close { background: none; border: none; cursor: pointer; font-size: 20px; color: var(--text-muted); line-height: 1; }
+
+  .progress-bar-wrap { background: #e2e8f0; border-radius: 999px; height: 6px; overflow: hidden; margin: 4px 0 2px; }
+  .progress-bar { height: 100%; border-radius: 999px; background: var(--accent); }
+  .progress-bar.orange { background: var(--warning); }
+
+  .timeline { border-left: 2px solid var(--border); margin-left: 8px; padding-left: 16px; }
+  .timeline-item { margin-bottom: 14px; position: relative; }
+  .timeline-item::before { content: ''; position: absolute; left: -22px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); border: 2px solid #fff; box-shadow: 0 0 0 2px var(--primary); }
+  .timeline-item.done::before { background: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .timeline-date { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+  .timeline-text { font-size: 13px; color: var(--text); }
+
+  .notification { position: fixed; bottom: 24px; right: 24px; background: var(--primary-dark); color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,0.2); transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 999; }
+  .notification.show { transform: translateY(0); opacity: 1; }
+
+  .alert { border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; }
+  .alert-warning { background: #fef9c3; border: 1px solid #fde047; color: #854d0e; }
+  .alert-info { background: var(--primary-light); border: 1px solid #93c5fd; color: var(--primary-dark); }
+
+  .tag { display: inline-block; padding: 2px 8px; background: var(--primary-light); color: var(--primary); border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px; }
+
+  /* データ層インジケーター */
+  .storage-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 8px; border-radius: 4px; background: #fef3c7; color: #92400e; border: 1px solid #fde047; font-weight: 600; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 10px; }
+  .empty-state p { font-size: 13px; }
+
+  @media (max-width: 900px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-title">🌊 海洋環境DNA<br>ストックセンター</div>
+    <div class="logo-sub">OIST・沖縄県</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">メインメニュー</div>
+    <div class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span> ダッシュボード</div>
+    <div class="nav-item" onclick="showPage('search')"><span class="icon">🔍</span> サンプルを探す</div>
+    <div class="nav-item" onclick="showPage('register')"><span class="icon">➕</span> 入庫登録</div>
+    <div class="nav-item" onclick="showPage('inventory')"><span class="icon">🧊</span> 在庫・保管管理</div>
+    <div class="nav-section-label">申請・審査</div>
+    <div class="nav-item" onclick="showPage('applications')"><span class="icon">📋</span> 利用申請管理</div>
+    <div class="nav-section-label">管理・設定</div>
+    <div class="nav-item" onclick="showPage('reports')"><span class="icon">📈</span> レポート・ログ</div>
+    <div class="nav-item" onclick="showPage('datasettings')"><span class="icon">⚙️</span> データ設定</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="user-avatar">佐</div>
+      <div>
+        <div class="user-info">佐藤 研究室</div>
+        <div class="user-role">参加機関担当者</div>
+      </div>
+    </div>
+    <div>OIST Marine Genomics Unit</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">ダッシュボード</div>
+    <div class="topbar-actions">
+      <span class="storage-badge" id="storage-mode-badge">💾 ブラウザ保存モード</span>
+      <div style="font-size:20px; cursor:pointer;" title="カート" onclick="showPage('search')">🛒<span id="cart-topbadge" style="display:none;font-size:11px;background:var(--danger);color:#fff;border-radius:999px;padding:1px 5px;vertical-align:top;margin-left:-4px;"></span></div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ===== DASHBOARD ===== -->
+    <div class="page active" id="page-dashboard">
+      <div class="section-title">ダッシュボード</div>
+      <div class="section-sub">在庫・リクエスト状況のサマリー</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">総サンプル数</div><div class="stat-value" id="dash-total">0</div><div class="stat-sub">登録済みサンプル</div></div>
+        <div class="stat-card green"><div class="stat-label">提供可能</div><div class="stat-value green" id="dash-available">0</div><div class="stat-sub">利用申請受付中</div></div>
+        <div class="stat-card orange"><div class="stat-label">期限接近・要評価</div><div class="stat-value orange" id="dash-expiring">0</div><div class="stat-sub">90日以内に期限到来</div></div>
+        <div class="stat-card red"><div class="stat-label">審査中申請</div><div class="stat-value red" id="dash-reviewing">0</div><div class="stat-sub">審査待ち</div></div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="card">
+          <div class="card-title">📢 最近の操作ログ</div>
+          <div id="dash-log" class="timeline">
+            <div class="empty-state"><div class="empty-icon">📝</div><p>まだ操作がありません</p></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🎯 ターゲット群別 内訳</div>
+          <div id="dash-targets"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SEARCH ===== -->
+    <div class="page" id="page-search">
+      <div class="section-title">サンプルを探す</div>
+      <div class="section-sub">条件で絞り込み、利用申請へ進めます</div>
+      <div class="search-bar-wrapper">
+        <div class="form-group" style="flex:2; min-width:180px;">
+          <label class="form-label">キーワード（地名・種名など）</label>
+          <input class="form-input" type="text" id="search-keyword" placeholder="例: 石垣島、サンゴ">
+        </div>
+        <div class="form-group">
+          <label class="form-label">海域タイプ</label>
+          <select class="form-input" id="search-habitat">
+            <option value="">すべて</option>
+            <option>礁内</option><option>礁池</option><option>外礁斜面</option><option>沿岸域</option><option>外洋域</option><option>河川・湖沼</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ターゲット群</label>
+          <select class="form-input" id="search-target">
+            <option value="">すべて</option>
+            <option>有藻性サンゴ類 (ITS2)</option><option>魚類・甲殻類 (12S rRNA)</option><option>全生物（メタバーコーディング）</option><option>海藻・植物プランクトン</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">提供可否</label>
+          <select class="form-input" id="search-status">
+            <option value="">すべて</option>
+            <option>提供可</option><option>条件付き</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="runSearch()">🔍 検索</button>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div id="search-count" style="font-size:13px; color:var(--text-muted);"></div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span id="cart-info" style="font-size:13px; color:var(--text-muted);">カート: 0件</span>
+          <button class="btn btn-accent btn-sm" id="apply-btn" style="display:none;" onclick="showApplicationModal()">📋 利用申請へ進む</button>
+        </div>
+      </div>
+      <div id="search-results"></div>
+    </div>
+
+    <!-- ===== REGISTER ===== -->
+    <div class="page" id="page-register">
+      <div class="section-title">入庫登録（新規サンプル）</div>
+      <div class="section-sub">採水イベントの情報をステップ形式で入力します</div>
+      <div class="wizard-steps">
+        <div class="wizard-step active" id="ws1" onclick="setWizardStep(1)"><span class="step-num">1</span>基本情報</div>
+        <div class="wizard-step" id="ws2" onclick="setWizardStep(2)"><span class="step-num">2</span>採水メタデータ</div>
+        <div class="wizard-step" id="ws3" onclick="setWizardStep(3)"><span class="step-num">3</span>保存条件</div>
+        <div class="wizard-step" id="ws4" onclick="setWizardStep(4)"><span class="step-num">4</span>解析情報</div>
+        <div class="wizard-step" id="ws5" onclick="setWizardStep(5)"><span class="step-num">5</span>利用ポリシー</div>
+      </div>
+
+      <!-- Step 1 -->
+      <div id="wiz-step-1">
+        <div class="card">
+          <div class="card-title">① サンプル基本情報</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">採水イベントID（自動採番）</label>
+              <input class="form-input" id="f-event-id" readonly style="background:#f8fafc;">
+            </div>
+            <div class="form-group">
+              <label class="form-label">プロジェクト名 <span class="required">*</span></label>
+              <input class="form-input" id="f-project" type="text" placeholder="例: 沖縄イノベーション・エコシステム共同研究">
+              <div class="field-error" id="err-project"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">採水者氏名 <span class="required">*</span></label>
+              <input class="form-input" id="f-collector" type="text" placeholder="例: 佐藤 花子">
+              <div class="field-error" id="err-collector"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">所属機関 <span class="required">*</span></label>
+              <select class="form-input" id="f-institution">
+                <option value="">選択してください</option>
+                <option>OIST（佐藤研究室）</option><option>琉球大学</option><option>沖縄環境科学センター</option><option>JAMSTEC</option><option>土木研究所</option><option>その他</option>
+              </select>
+              <div class="field-error" id="err-institution"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">クルーズ・調査名（任意）</label>
+            <input class="form-input" id="f-cruise" type="text" placeholder="例: 石垣島秋季調査クルーズ 2025">
+          </div>
+          <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+            <button class="btn btn-primary" onclick="nextStep(1)">次へ →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div id="wiz-step-2" style="display:none;">
+        <div class="card">
+          <div class="card-title">② 採水メタデータ</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">緯度（10進法）<span class="required">*</span></label>
+              <input class="form-input" id="f-lat" type="number" placeholder="例: 26.4701" step="0.0001">
+              <div class="field-error" id="err-lat"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">経度（10進法）<span class="required">*</span></label>
+              <input class="form-input" id="f-lng" type="number" placeholder="例: 127.8701" step="0.0001">
+              <div class="field-error" id="err-lng"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">採水日時 <span class="required">*</span></label>
+              <input class="form-input" id="f-date" type="datetime-local">
+              <div class="field-error" id="err-date"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">水深（m）</label>
+              <input class="form-input" id="f-depth" type="number" placeholder="例: 5" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">採水体積（L）</label>
+              <input class="form-input" id="f-volume" type="number" placeholder="例: 2.0" step="0.5" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">海域タイプ <span class="required">*</span></label>
+              <select class="form-input" id="f-habitat">
+                <option value="">選択してください</option>
+                <option>礁内</option><option>礁池</option><option>外礁斜面</option><option>沿岸域</option><option>外洋域</option><option>河川・湖沼</option>
+              </select>
+              <div class="field-error" id="err-habitat"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">採水地点名（任意）</label>
+            <input class="form-input" id="f-location-name" type="text" placeholder="例: 恩納村沖 礁斜面">
+          </div>
+          <div class="form-grid-3">
+            <div class="form-group"><label class="form-label">水温（℃）</label><input class="form-input" id="f-temp" type="number" placeholder="28.5" step="0.1"></div>
+            <div class="form-group"><label class="form-label">塩分（psu）</label><input class="form-input" id="f-salinity" type="number" placeholder="34.5" step="0.1"></div>
+            <div class="form-group"><label class="form-label">透明度（m）</label><input class="form-input" id="f-visibility" type="number" placeholder="20"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:8px;">
+            <button class="btn btn-outline" onclick="setWizardStep(1)">← 前へ</button>
+            <button class="btn btn-primary" onclick="nextStep(2)">次へ →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div id="wiz-step-3" style="display:none;">
+        <div class="card">
+          <div class="card-title">③ 処理・保存条件</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">フィルター種 <span class="required">*</span></label>
+              <select class="form-input" id="f-filter">
+                <option value="">選択してください</option>
+                <option>Sterivex（0.22 μm）</option><option>GFF（0.7 μm）</option><option>PolycarbonatePC（0.45 μm）</option><option>その他</option>
+              </select>
+              <div class="field-error" id="err-filter"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">保存液</label>
+              <select class="form-input" id="f-preservative">
+                <option>RNAlater</option><option>エタノール（99%）</option><option>緩衝液なし（乾燥）</option><option>その他</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">保存温度 <span class="required">*</span></label>
+              <select class="form-input" id="f-temp-storage">
+                <option value="">選択してください</option>
+                <option>-80℃（超低温）</option><option>-20℃</option><option>4℃（短期）</option>
+              </select>
+              <div class="field-error" id="err-temp-storage"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">保管施設</label>
+              <select class="form-input" id="f-facility">
+                <option>OIST B棟 冷凍室 FZ-03</option><option>OIST B棟 冷凍室 FZ-04</option><option>琉大 理学部 FZ-01</option><option>沖縄環境科学センター C棟</option><option>その他</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">入庫日時</label>
+              <input class="form-input" id="f-storage-date" type="datetime-local">
+            </div>
+            <div class="form-group">
+              <label class="form-label">推定保存期限 <span class="required">*</span></label>
+              <input class="form-input" id="f-expiry" type="date">
+              <div class="field-error" id="err-expiry"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">aliquot数（分注本数）</label>
+            <input class="form-input" id="f-aliquots" type="number" placeholder="例: 10" min="1">
+          </div>
+          <div class="alert alert-info">💡 保管場所IDとサンプルIDは自動で紐付けられ、入庫確定後にQRラベルが生成されます</div>
+          <div style="display:flex; justify-content:space-between; margin-top:8px;">
+            <button class="btn btn-outline" onclick="setWizardStep(2)">← 前へ</button>
+            <button class="btn btn-primary" onclick="nextStep(3)">次へ →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div id="wiz-step-4" style="display:none;">
+        <div class="card">
+          <div class="card-title">④ 解析情報</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">ターゲット（メタバーコード領域）<span class="required">*</span></label>
+              <select class="form-input" id="f-target">
+                <option value="">選択してください</option>
+                <option>有藻性サンゴ類 (ITS2)</option><option>魚類・甲殻類 (12S rRNA)</option><option>全生物（メタバーコーディング）</option><option>海藻・植物プランクトン</option><option>細菌（16S rRNA）</option>
+              </select>
+              <div class="field-error" id="err-target"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">シーケンサー</label>
+              <select class="form-input" id="f-sequencer">
+                <option>未解析</option><option>Illumina MiSeq</option><option>Illumina NovaSeq</option><option>Oxford Nanopore</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">公開済みアクセッション番号（DRA/DDBJ/ENA/SRA）</label>
+            <input class="form-input" id="f-accession" type="text" placeholder="例: DRR123456（未解析の場合は空欄）">
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:8px;">
+            <button class="btn btn-outline" onclick="setWizardStep(3)">← 前へ</button>
+            <button class="btn btn-primary" onclick="nextStep(4)">次へ →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div id="wiz-step-5" style="display:none;">
+        <div class="card">
+          <div class="card-title">⑤ 利用ポリシー設定</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">利用制限レベル <span class="required">*</span></label>
+              <select class="form-input" id="f-access">
+                <option value="">選択してください</option>
+                <option>提供可（条件なし）</option><option>条件付き（共著・報告義務）</option><option>要審査（希少種・ABS関連）</option><option>非公開（機関内のみ）</option>
+              </select>
+              <div class="field-error" id="err-access"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ABS・許認可</label>
+              <select class="form-input" id="f-abs">
+                <option>国内EEZ内（制限なし）</option><option>外国EEZ（ABS申告必要）</option><option>公海</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">共同研究・共著条件（任意）</label>
+            <textarea class="form-input" id="f-conditions" placeholder="例: 本サンプルを利用した論文では共著者として○○研究室を含めること"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">位置情報の公開レベル</label>
+            <select class="form-input" id="f-geo-level">
+              <option>全公開（小数点4桁）</option><option>粗い精度（小数点1桁）</option><option>地域名のみ</option><option>非公開</option>
+            </select>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:8px;">
+            <button class="btn btn-outline" onclick="setWizardStep(4)">← 前へ</button>
+            <button class="btn btn-accent" onclick="completeRegistration()">✅ 登録を完了する</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== INVENTORY ===== -->
+    <div class="page" id="page-inventory">
+      <div class="section-title">在庫・保管管理</div>
+      <div class="section-sub">保管状況の確認と管理</div>
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>🗂️ サンプル在庫一覧</span>
+          <button class="btn btn-sm btn-gray" onclick="exportCSV()">📥 CSVエクスポート</button>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+          <input class="form-input" type="text" id="inv-filter-text" placeholder="ID・地名・機関名で絞り込み" style="max-width:250px;" oninput="renderInventory()">
+          <select class="form-input" id="inv-filter-status" style="max-width:180px;" onchange="renderInventory()">
+            <option value="">すべての状態</option>
+            <option value="提供可">提供可</option>
+            <option value="条件付き">条件付き</option>
+            <option value="期限接近">期限接近</option>
+          </select>
+        </div>
+        <div id="inventory-table"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🧊 OIST FZ-03 フリーザーマップ（イメージ）</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">ラック A（8×8）— 色はサンプル充填率</div>
+        <div class="freezer-grid" id="freezer-grid"></div>
+        <div class="freezer-legend">
+          <span><div class="legend-dot" style="background:var(--primary)"></div> 満杯</span>
+          <span><div class="legend-dot" style="background:var(--accent)"></div> 使用中</span>
+          <span><div class="legend-dot" style="background:var(--warning)"></div> 期限接近</span>
+          <span><div class="legend-dot" style="background:#e2e8f0"></div> 空き</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== APPLICATIONS ===== -->
+    <div class="page" id="page-applications">
+      <div class="section-title">利用申請管理</div>
+      <div class="section-sub">申請の受付・審査・出庫管理</div>
+      <div style="display:flex; gap:10px; margin-bottom:16px;">
+        <button class="btn btn-accent" onclick="showApplicationModal()">＋ 新規利用申請</button>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 申請一覧</div>
+        <div id="applications-table"></div>
+      </div>
+    </div>
+
+    <!-- ===== REPORTS ===== -->
+    <div class="page" id="page-reports">
+      <div class="section-title">レポート・ログ</div>
+      <div class="section-sub">統計・操作履歴・ドキュメント管理</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">総入庫件数</div><div class="stat-value" id="rep-total">0</div></div>
+        <div class="stat-card green"><div class="stat-label">提供可能</div><div class="stat-value green" id="rep-available">0</div></div>
+        <div class="stat-card orange"><div class="stat-label">申請件数</div><div class="stat-value orange" id="rep-apps">0</div></div>
+        <div class="stat-card"><div class="stat-label">参加機関</div><div class="stat-value" id="rep-institutions">0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 操作ログ</div>
+        <div id="report-log"></div>
+      </div>
+    </div>
+
+    <!-- ===== DATA SETTINGS ===== -->
+    <div class="page" id="page-datasettings">
+      <div class="section-title">データ設定</div>
+      <div class="section-sub">保管方式の確認・データのエクスポート／インポート・リセット</div>
+
+      <div class="card">
+        <div class="card-title">💾 現在のデータ保管モード</div>
+        <div class="alert alert-warning">
+          <div>
+            <strong>ブラウザ保存モード（localStorage）</strong><br>
+            データはこのブラウザ内に保存されます。別のPCやブラウザでは共有されません。<br>
+            将来的にサーバー連携モードへ切り替えることで、複数機関での共有が可能になります。
+          </div>
+        </div>
+        <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
+          <strong>将来の移行先（予定）：</strong><br>
+          ① Google スプレッドシート連携（アカウントがあればすぐ使える・複数機関で共有可能）<br>
+          ② ローカルサーバー（Python + SQLite）— 完全自前管理・ネット不要<br>
+          ③ クラウドDB（FastAPI + PostgreSQL）— 本番運用向け
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="exportCSV()">📥 CSVエクスポート（サンプル）</button>
+          <button class="btn btn-outline" onclick="document.getElementById('import-file').click()">📤 CSVインポート</button>
+          <input type="file" id="import-file" accept=".csv" style="display:none;" onchange="importCSV(event)">
+          <button class="btn btn-gray" onclick="exportAllJSON()">💾 全データをJSONで保存</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🧪 ダミーデータ生成</div>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">動作確認用に沖縄周辺の仮想サンプルを100件生成します。既存データに追加されます。</p>
+        <button class="btn btn-accent" onclick="generateDummyData()">🧬 ダミーデータ100件を生成</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🗑️ データリセット</div>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">ブラウザ内のすべてのデータを削除します。この操作は取り消せません。</p>
+        <button class="btn btn-danger" onclick="confirmReset()">全データをリセット</button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- SAMPLE DETAIL MODAL -->
+<div class="modal-overlay" id="sample-modal">
+  <div class="modal">
+    <div class="modal-header"><h3 id="modal-title">サンプル詳細</h3><button class="modal-close" onclick="closeModal('sample-modal')">✕</button></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('sample-modal')">閉じる</button>
+      <button class="btn btn-accent" id="modal-cart-btn" onclick="addFromModal()">🛒 カートへ追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- APPLICATION MODAL -->
+<div class="modal-overlay" id="application-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>新規利用申請</h3><button class="modal-close" onclick="closeModal('application-modal')">✕</button></div>
+    <div class="modal-body">
+      <div id="app-cart-summary" style="margin-bottom:14px;"></div>
+      <div class="form-group">
+        <label class="form-label">申請者氏名 <span class="required">*</span></label>
+        <input class="form-input" id="app-name" type="text" placeholder="例: 田中 一郎">
+        <div class="field-error" id="err-app-name"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">所属機関 <span class="required">*</span></label>
+        <input class="form-input" id="app-institution" type="text" placeholder="例: 琉球大学 理工学研究科">
+        <div class="field-error" id="err-app-institution"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">研究目的・意義 <span class="required">*</span></label>
+        <textarea class="form-input" id="app-purpose" placeholder="本研究の目的と当該サンプルが必要な理由を記述してください"></textarea>
+        <div class="field-error" id="err-app-purpose"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">希望提供形態</label>
+          <select class="form-input" id="app-form">
+            <option>抽出前フィルター</option><option>抽出済みDNA</option><option>ライブラリ済みDNA</option><option>データのみ（再解析）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">対象分類群</label>
+          <input class="form-input" id="app-taxa" type="text" placeholder="例: 有藻性サンゴ類全般">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">自力採集の困難理由</label>
+        <textarea class="form-input" id="app-difficulty" placeholder="白化現象前のデータが必要、採水時期の再現が困難など" style="min-height:60px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('application-modal')">キャンセル</button>
+      <button class="btn btn-accent" onclick="submitApplication()">申請を送信する</button>
+    </div>
+  </div>
+</div>
+
+<!-- REVIEW MODAL -->
+<div class="modal-overlay" id="review-modal">
+  <div class="modal">
+    <div class="modal-header"><h3 id="review-modal-title">申請審査</h3><button class="modal-close" onclick="closeModal('review-modal')">✕</button></div>
+    <div class="modal-body" id="review-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('review-modal')">キャンセル</button>
+      <button class="btn btn-danger" id="reject-btn">却下</button>
+      <button class="btn btn-primary" id="conditional-btn">条件付き承認</button>
+      <button class="btn btn-accent" id="approve-btn">承認</button>
+    </div>
+  </div>
+</div>
+
+<div class="notification" id="notification"></div>
+
+<script>
+// ============================================================
+//  DATA LAYER — 将来サーバーAPIに切り替える場合はここだけ変更
+//  現在: localStorage (ブラウザ保存)
+//  将来: fetch('/api/samples', ...) 等に差し替え
+// ============================================================
+const DB = {
+  KEYS: { samples: 'edna_samples', applications: 'edna_applications', logs: 'edna_logs' },
+
+  getSamples() {
+    try { return JSON.parse(localStorage.getItem(this.KEYS.samples) || '[]'); }
+    catch(e) { return []; }
+  },
+  saveSamples(data) { localStorage.setItem(this.KEYS.samples, JSON.stringify(data)); },
+
+  getApplications() {
+    try { return JSON.parse(localStorage.getItem(this.KEYS.applications) || '[]'); }
+    catch(e) { return []; }
+  },
+  saveApplications(data) { localStorage.setItem(this.KEYS.applications, JSON.stringify(data)); },
+
+  getLogs() {
+    try { return JSON.parse(localStorage.getItem(this.KEYS.logs) || '[]'); }
+    catch(e) { return []; }
+  },
+  addLog(action) {
+    const logs = this.getLogs();
+    logs.unshift({ ts: new Date().toISOString(), action });
+    localStorage.setItem(this.KEYS.logs, JSON.stringify(logs.slice(0, 200)));
+  },
+
+  addSample(s) {
+    const samples = this.getSamples();
+    samples.push(s);
+    this.saveSamples(samples);
+    this.addLog('入庫登録: ' + s.id + '（' + s.locationName + ' / ' + s.institution + '）');
+  },
+
+  reset() {
+    Object.values(this.KEYS).forEach(k => localStorage.removeItem(k));
+  },
+
+  generateId() {
+    const samples = this.getSamples();
+    const year = new Date().getFullYear();
+    const prefix = 'OIST-' + year + '-';
+    const nums = samples.filter(s => s.id && s.id.startsWith(prefix))
+      .map(s => parseInt(s.id.replace(prefix, '')) || 0);
+    const next = nums.length ? Math.max(...nums) + 1 : 1;
+    return prefix + String(next).padStart(4, '0');
+  }
+};
+
+// ============================================================
+//  CART
+// ============================================================
+let cart = new Set();
+let currentModalSampleId = null;
+
+function addToCart(event, id) {
+  if (event) event.stopPropagation();
+  cart.add(id);
+  updateCartUI();
+  showNotification('カートに追加: ' + id);
+}
+function addFromModal() {
+  if (currentModalSampleId) addToCart(null, currentModalSampleId);
+  closeModal('sample-modal');
+}
+function updateCartUI() {
+  const n = cart.size;
+  const badge = document.getElementById('cart-topbadge');
+  badge.textContent = n;
+  badge.style.display = n > 0 ? 'inline' : 'none';
+  const info = document.getElementById('cart-info');
+  if (info) info.textContent = 'カート: ' + n + '件';
+  const applyBtn = document.getElementById('apply-btn');
+  if (applyBtn) applyBtn.style.display = n > 0 ? 'inline-flex' : 'none';
+}
+
+// ============================================================
+//  NAVIGATION
+// ============================================================
+const pageTitles = {
+  dashboard: 'ダッシュボード', search: 'サンプルを探す', register: '入庫登録',
+  inventory: '在庫・保管管理', applications: '利用申請管理',
+  reports: 'レポート・ログ', datasettings: 'データ設定'
+};
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('topbar-title').textContent = pageTitles[name] || name;
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', (n.getAttribute('onclick') || '').includes("'" + name + "'"));
+  });
+  if (name === 'dashboard') refreshDashboard();
+  if (name === 'inventory') { renderInventory(); buildFreezerGrid(); }
+  if (name === 'applications') renderApplications();
+  if (name === 'search') { runSearch(); }
+  if (name === 'reports') refreshReports();
+}
+
+// ============================================================
+//  DASHBOARD
+// ============================================================
+function refreshDashboard() {
+  const samples = DB.getSamples();
+  const apps = DB.getApplications();
+  const today = new Date();
+  const in90 = new Date(today); in90.setDate(in90.getDate() + 90);
+
+  document.getElementById('dash-total').textContent = samples.length;
+  document.getElementById('dash-available').textContent =
+    samples.filter(s => s.access === '提供可（条件なし）').length;
+  document.getElementById('dash-expiring').textContent =
+    samples.filter(s => { const e = new Date(s.expiry); return e >= today && e <= in90; }).length;
+  document.getElementById('dash-reviewing').textContent =
+    apps.filter(a => a.status === '審査中').length;
+
+  // Log
+  const logs = DB.getLogs();
+  const logEl = document.getElementById('dash-log');
+  if (logs.length === 0) {
+    logEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><p>まだ操作がありません</p></div>';
+  } else {
+    logEl.innerHTML = logs.slice(0, 8).map(l => {
+      const d = new Date(l.ts);
+      const ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      return `<div class="timeline-item done"><div class="timeline-date">${ds}</div><div class="timeline-text">${l.action}</div></div>`;
+    }).join('');
+  }
+
+  // Targets
+  const tgtMap = {};
+  samples.forEach(s => { tgtMap[s.target] = (tgtMap[s.target] || 0) + 1; });
+  const max = Math.max(1, ...Object.values(tgtMap));
+  document.getElementById('dash-targets').innerHTML = Object.entries(tgtMap).length === 0
+    ? '<div class="empty-state"><div class="empty-icon">🎯</div><p>まだデータがありません</p></div>'
+    : Object.entries(tgtMap).sort((a,b) => b[1]-a[1]).map(([k,v]) =>
+        `<div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-size:13px;"><span>${k}</span><span style="font-weight:700;">${v}</span></div>
+          <div class="progress-bar-wrap"><div class="progress-bar" style="width:${Math.round(v/max*100)}%"></div></div>
+        </div>`).join('');
+}
+
+// ============================================================
+//  SEARCH
+// ============================================================
+function runSearch() {
+  const kw = (document.getElementById('search-keyword')?.value || '').toLowerCase();
+  const hab = document.getElementById('search-habitat')?.value || '';
+  const tgt = document.getElementById('search-target')?.value || '';
+  const st = document.getElementById('search-status')?.value || '';
+  const samples = DB.getSamples();
+
+  const filtered = samples.filter(s => {
+    const hay = [s.id, s.locationName, s.project, s.institution, s.target].join(' ').toLowerCase();
+    if (kw && !hay.includes(kw)) return false;
+    if (hab && s.habitat !== hab) return false;
+    if (tgt && s.target !== tgt) return false;
+    if (st === '提供可' && s.access !== '提供可（条件なし）') return false;
+    if (st === '条件付き' && !s.access.includes('条件付き')) return false;
+    return true;
+  });
+
+  const countEl = document.getElementById('search-count');
+  if (countEl) countEl.textContent = filtered.length + '件のサンプルが見つかりました';
+
+  const el = document.getElementById('search-results');
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>条件に一致するサンプルがありません。<br>先に「入庫登録」からサンプルを追加してください。</p></div>';
+    return;
+  }
+  el.innerHTML = filtered.map(s => {
+    const today = new Date();
+    const in90 = new Date(today); in90.setDate(in90.getDate() + 90);
+    const expDate = new Date(s.expiry);
+    const expiring = expDate >= today && expDate <= in90;
+    const isCart = cart.has(s.id);
+    return `<div class="result-card">
+      <div class="rc-icon">🧪</div>
+      <div class="rc-body">
+        <div class="rc-id">${s.id}</div>
+        <div class="rc-title">${s.locationName || s.habitat} — ${s.collectionDate ? s.collectionDate.split('T')[0] : ''}</div>
+        <div class="rc-meta">
+          <span>📍 ${s.lat ? s.lat + '°N, ' + s.lng + '°E' : '未入力'}</span>
+          <span>🌊 水深: ${s.depth || '-'}m</span>
+          <span>🎯 ${s.target}</span>
+          <span>🏛️ ${s.institution}</span>
+        </div>
+        <div style="margin-top:6px;">
+          <span class="badge ${s.access.includes('条件付き') ? 'badge-orange' : 'badge-green'}">${s.access}</span>
+          <span class="badge ${s.sequencer === '未解析' ? 'badge-gray' : 'badge-blue'}">${s.sequencer === '未解析' ? '未解析' : '解析済'}</span>
+          ${expiring ? '<span class="badge badge-red">期限接近</span>' : ''}
+          <span class="tag">残量: ${s.aliquots || '-'} aliq.</span>
+        </div>
+      </div>
+      <div class="rc-actions">
+        <button class="btn btn-sm btn-outline" onclick="showSampleDetail('${s.id}')">詳細</button>
+        <button class="btn btn-sm ${isCart ? 'btn-gray' : 'btn-primary'}" onclick="addToCart(event,'${s.id}')" ${isCart ? 'disabled' : ''}>
+          ${isCart ? '✓ 追加済' : '🛒 カートへ'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+//  SAMPLE DETAIL MODAL
+// ============================================================
+function showSampleDetail(id) {
+  const samples = DB.getSamples();
+  const s = samples.find(x => x.id === id);
+  if (!s) return;
+  currentModalSampleId = id;
+  document.getElementById('modal-title').textContent = (s.locationName || s.habitat) + ' — ' + id;
+  const rows = [
+    ['サンプルID', s.id], ['プロジェクト', s.project], ['採水者', s.collector], ['所属機関', s.institution],
+    ['採水地点', s.locationName || '-'], ['緯度・経度', s.lat ? s.lat + '°N, ' + s.lng + '°E' : '-'],
+    ['採水日時', s.collectionDate || '-'], ['水深', (s.depth || '-') + ' m'], ['採水体積', (s.volume || '-') + ' L'],
+    ['海域タイプ', s.habitat], ['水温', (s.temp || '-') + ' ℃'], ['塩分', (s.salinity || '-') + ' psu'],
+    ['フィルター', s.filter], ['保存液', s.preservative], ['保存温度', s.tempStorage],
+    ['保管施設', s.facility], ['推定保存期限', s.expiry], ['aliquot数', s.aliquots || '-'],
+    ['ターゲット', s.target], ['シーケンサー', s.sequencer], ['アクセッション番号', s.accession || '-'],
+    ['利用制限レベル', s.access], ['ABS', s.abs], ['共著条件', s.conditions || '-'],
+  ];
+  document.getElementById('modal-body').innerHTML = `<table>${rows.map(([k,v]) =>
+    `<tr><td style="font-size:12px;font-weight:700;color:var(--text-muted);padding:7px 10px;width:40%;border-bottom:1px solid #f0f4f7;">${k}</td>
+     <td style="font-size:13px;padding:7px 10px;border-bottom:1px solid #f0f4f7;">${v}</td></tr>`
+  ).join('')}</table>`;
+  document.getElementById('sample-modal').classList.add('open');
+}
+
+// ============================================================
+//  WIZARD & REGISTRATION
+// ============================================================
+let currentStep = 1;
+function setWizardStep(step) {
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById('wiz-step-' + i);
+    const ws = document.getElementById('ws' + i);
+    if (el) el.style.display = i === step ? 'block' : 'none';
+    if (ws) { ws.classList.remove('active','done'); if (i===step) ws.classList.add('active'); else if(i<step) ws.classList.add('done'); }
+  }
+  currentStep = step;
+}
+
+function clearFieldError(id) {
+  const el = document.getElementById('err-' + id);
+  const inp = document.getElementById('f-' + id);
+  if (el) el.textContent = '';
+  if (inp) inp.classList.remove('error');
+}
+function setFieldError(id, msg) {
+  const el = document.getElementById('err-' + id);
+  const inp = document.getElementById('f-' + id);
+  if (el) el.textContent = msg;
+  if (inp) inp.classList.add('error');
+  return false;
+}
+function checkRequired(id, label) {
+  const el = document.getElementById('f-' + id);
+  if (!el || !el.value.trim()) return setFieldError(id, label + 'を入力してください');
+  clearFieldError(id); return true;
+}
+
+function nextStep(step) {
+  let ok = true;
+  if (step === 1) {
+    ok = checkRequired('project', 'プロジェクト名') & checkRequired('collector', '採水者氏名') & checkRequired('institution', '所属機関') && ok;
+  } else if (step === 2) {
+    ok = checkRequired('lat', '緯度') & checkRequired('lng', '経度') & checkRequired('date', '採水日時') & checkRequired('habitat', '海域タイプ') && ok;
+  } else if (step === 3) {
+    ok = checkRequired('filter', 'フィルター種') & checkRequired('temp-storage', '保存温度') & checkRequired('expiry', '推定保存期限') && ok;
+  } else if (step === 4) {
+    ok = checkRequired('target', 'ターゲット') && ok;
+  }
+  if (ok) setWizardStep(step + 1);
+}
+
+function completeRegistration() {
+  if (!checkRequired('access', '利用制限レベル')) return;
+  const id = DB.generateId();
+  const sample = {
+    id,
+    project: document.getElementById('f-project').value,
+    collector: document.getElementById('f-collector').value,
+    institution: document.getElementById('f-institution').value,
+    cruise: document.getElementById('f-cruise').value,
+    lat: document.getElementById('f-lat').value,
+    lng: document.getElementById('f-lng').value,
+    collectionDate: document.getElementById('f-date').value,
+    depth: document.getElementById('f-depth').value,
+    volume: document.getElementById('f-volume').value,
+    habitat: document.getElementById('f-habitat').value,
+    locationName: document.getElementById('f-location-name').value,
+    temp: document.getElementById('f-temp').value,
+    salinity: document.getElementById('f-salinity').value,
+    visibility: document.getElementById('f-visibility').value,
+    filter: document.getElementById('f-filter').value,
+    preservative: document.getElementById('f-preservative').value,
+    tempStorage: document.getElementById('f-temp-storage').value,
+    facility: document.getElementById('f-facility').value,
+    storageDate: document.getElementById('f-storage-date').value,
+    expiry: document.getElementById('f-expiry').value,
+    aliquots: document.getElementById('f-aliquots').value,
+    target: document.getElementById('f-target').value,
+    sequencer: document.getElementById('f-sequencer').value,
+    accession: document.getElementById('f-accession').value,
+    access: document.getElementById('f-access').value,
+    abs: document.getElementById('f-abs').value,
+    conditions: document.getElementById('f-conditions').value,
+    geoLevel: document.getElementById('f-geo-level').value,
+    registeredAt: new Date().toISOString(),
+  };
+  DB.addSample(sample);
+  showNotification('✅ 入庫登録完了: ' + id);
+  // フォームリセット
+  ['project','collector','cruise','lat','lng','depth','volume','location-name','temp','salinity','visibility',
+   'accession','conditions'].forEach(k => { const el = document.getElementById('f-'+k); if(el) el.value = ''; });
+  ['institution','habitat','filter','preservative','temp-storage','facility','target','sequencer','access','abs','geo-level']
+    .forEach(k => { const el = document.getElementById('f-'+k); if(el) el.selectedIndex = 0; });
+  document.getElementById('f-expiry').value = '';
+  document.getElementById('f-aliquots').value = '';
+  document.getElementById('f-storage-date').value = '';
+  document.getElementById('f-date').value = '';
+  document.getElementById('f-event-id').value = DB.generateId();
+  setWizardStep(1);
+}
+
+// ============================================================
+//  INVENTORY
+// ============================================================
+function renderInventory() {
+  const text = (document.getElementById('inv-filter-text')?.value || '').toLowerCase();
+  const status = document.getElementById('inv-filter-status')?.value || '';
+  const samples = DB.getSamples();
+  const today = new Date(); const in90 = new Date(today); in90.setDate(in90.getDate()+90);
+
+  const filtered = samples.filter(s => {
+    const hay = [s.id, s.locationName, s.institution, s.project].join(' ').toLowerCase();
+    if (text && !hay.includes(text)) return false;
+    if (status === '提供可' && s.access !== '提供可（条件なし）') return false;
+    if (status === '条件付き' && !s.access.includes('条件付き')) return false;
+    if (status === '期限接近') {
+      const e = new Date(s.expiry); if (!(e >= today && e <= in90)) return false;
+    }
+    return true;
+  });
+
+  const el = document.getElementById('inventory-table');
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>サンプルがありません。「入庫登録」から追加してください。</p></div>';
+    return;
+  }
+  el.innerHTML = `<table>
+    <thead><tr><th>サンプルID</th><th>採水地点</th><th>ターゲット</th><th>残量</th><th>保管施設</th><th>期限</th><th>状態</th><th>操作</th></tr></thead>
+    <tbody>${filtered.map(s => {
+      const e = new Date(s.expiry); const expiring = e >= today && e <= in90;
+      return `<tr>
+        <td><code>${s.id}</code></td>
+        <td>${s.locationName || s.habitat}</td>
+        <td>${s.target}</td>
+        <td>${s.aliquots || '-'} aliq.</td>
+        <td style="font-size:11px;">${s.facility}</td>
+        <td><span class="badge ${expiring ? 'badge-red' : 'badge-green'}">${s.expiry || '-'}</span></td>
+        <td><span class="badge ${expiring ? 'badge-red' : 'badge-green'}">${expiring ? '期限接近' : '正常'}</span></td>
+        <td><button class="btn btn-sm btn-outline" onclick="showSampleDetail('${s.id}')">詳細</button></td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+// ============================================================
+//  APPLICATIONS
+// ============================================================
+function showApplicationModal() {
+  const cartEl = document.getElementById('app-cart-summary');
+  if (cart.size > 0) {
+    cartEl.innerHTML = `<div class="alert alert-info">🛒 カートのサンプル（${cart.size}件）を申請対象とします: <strong>${[...cart].join(', ')}</strong></div>`;
+  } else {
+    cartEl.innerHTML = `<div class="alert alert-warning">⚠️ カートが空です。「サンプルを探す」から申請したいサンプルをカートに追加してください。</div>`;
+  }
+  document.getElementById('application-modal').classList.add('open');
+}
+
+function submitApplication() {
+  let ok = true;
+  if (!document.getElementById('app-name').value.trim()) { document.getElementById('err-app-name').textContent = '氏名を入力してください'; ok = false; } else document.getElementById('err-app-name').textContent = '';
+  if (!document.getElementById('app-institution').value.trim()) { document.getElementById('err-app-institution').textContent = '所属機関を入力してください'; ok = false; } else document.getElementById('err-app-institution').textContent = '';
+  if (!document.getElementById('app-purpose').value.trim()) { document.getElementById('err-app-purpose').textContent = '研究目的を入力してください'; ok = false; } else document.getElementById('err-app-purpose').textContent = '';
+  if (!ok) return;
+
+  const apps = DB.getApplications();
+  const reqId = 'REQ-' + new Date().getFullYear() + '-' + String(apps.length + 1).padStart(4, '0');
+  apps.push({
+    id: reqId,
+    name: document.getElementById('app-name').value,
+    institution: document.getElementById('app-institution').value,
+    purpose: document.getElementById('app-purpose').value,
+    form: document.getElementById('app-form').value,
+    taxa: document.getElementById('app-taxa').value,
+    difficulty: document.getElementById('app-difficulty').value,
+    samples: [...cart],
+    status: '審査中',
+    submittedAt: new Date().toISOString(),
+  });
+  DB.saveApplications(apps);
+  DB.addLog('利用申請: ' + reqId + '（' + document.getElementById('app-name').value + '）');
+  cart.clear(); updateCartUI();
+  closeModal('application-modal');
+  showNotification('✅ 申請を送信しました: ' + reqId);
+  ['app-name','app-institution','app-purpose','app-taxa','app-difficulty'].forEach(id => { document.getElementById(id).value = ''; });
+  renderApplications();
+}
+
+function renderApplications() {
+  const apps = DB.getApplications();
+  const el = document.getElementById('applications-table');
+  if (apps.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>まだ申請がありません</p></div>';
+    return;
+  }
+  el.innerHTML = `<table>
+    <thead><tr><th>申請番号</th><th>申請者・機関</th><th>対象</th><th>目的</th><th>申請日</th><th>状態</th><th>操作</th></tr></thead>
+    <tbody>${apps.map(a => {
+      const d = a.submittedAt ? new Date(a.submittedAt).toLocaleDateString('ja-JP') : '-';
+      const badge = a.status === '承認' ? 'badge-green' : a.status === '却下' ? 'badge-red' : 'badge-orange';
+      return `<tr>
+        <td><code>${a.id}</code></td>
+        <td>${a.name}<br><span style="font-size:11px;color:var(--text-muted);">${a.institution}</span></td>
+        <td style="font-size:11px;">${(a.samples||[]).slice(0,2).join(', ')}${(a.samples||[]).length > 2 ? ' ...' : ''}</td>
+        <td style="max-width:180px;font-size:12px;">${a.purpose.slice(0,40)}${a.purpose.length>40?'…':''}</td>
+        <td>${d}</td>
+        <td><span class="badge ${badge}">${a.status}</span></td>
+        <td>${a.status === '審査中' ? `<button class="btn btn-sm btn-primary" onclick="openReview('${a.id}')">審査する</button>` : `<button class="btn btn-sm btn-outline" onclick="openReview('${a.id}')">詳細</button>`}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function openReview(id) {
+  const apps = DB.getApplications();
+  const a = apps.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('review-modal-title').textContent = '申請審査 — ' + a.id;
+  document.getElementById('review-modal-body').innerHTML = `
+    <div style="background:#f8fafc;border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;">
+      <div><strong>申請者:</strong> ${a.name}（${a.institution}）</div>
+      <div><strong>目的:</strong> ${a.purpose}</div>
+      <div style="margin-top:6px;"><strong>対象サンプル:</strong> ${(a.samples||[]).map(s=>`<span class="tag">${s}</span>`).join('')}</div>
+      <div style="margin-top:4px;"><strong>希望形態:</strong> ${a.form || '-'} / <strong>分類群:</strong> ${a.taxa || '-'}</div>
+      ${a.difficulty ? `<div><strong>自力採集困難理由:</strong> ${a.difficulty}</div>` : ''}
+      <div style="margin-top:6px;"><strong>現在のステータス:</strong> <span class="badge ${a.status==='承認'?'badge-green':a.status==='却下'?'badge-red':'badge-orange'}">${a.status}</span></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">審査コメント・条件</label>
+      <textarea class="form-input" id="review-comment" placeholder="承認・却下の理由、共著条件など">${a.reviewComment || ''}</textarea>
+    </div>`;
+  document.getElementById('approve-btn').onclick = () => updateAppStatus(id, '承認');
+  document.getElementById('conditional-btn').onclick = () => updateAppStatus(id, '条件付き承認');
+  document.getElementById('reject-btn').onclick = () => updateAppStatus(id, '却下');
+  document.getElementById('review-modal').classList.add('open');
+}
+
+function updateAppStatus(id, status) {
+  const apps = DB.getApplications();
+  const a = apps.find(x => x.id === id);
+  if (a) {
+    a.status = status;
+    a.reviewComment = document.getElementById('review-comment')?.value || '';
+    a.reviewedAt = new Date().toISOString();
+  }
+  DB.saveApplications(apps);
+  DB.addLog('申請審査: ' + id + ' → ' + status);
+  closeModal('review-modal');
+  showNotification('申請 ' + id + ' を ' + status + ' しました');
+  renderApplications();
+  refreshDashboard();
+}
+
+// ============================================================
+//  REPORTS
+// ============================================================
+function refreshReports() {
+  const samples = DB.getSamples();
+  const apps = DB.getApplications();
+  const institutions = new Set(samples.map(s => s.institution)).size;
+  document.getElementById('rep-total').textContent = samples.length;
+  document.getElementById('rep-available').textContent = samples.filter(s => s.access === '提供可（条件なし）').length;
+  document.getElementById('rep-apps').textContent = apps.length;
+  document.getElementById('rep-institutions').textContent = institutions;
+
+  const logs = DB.getLogs();
+  document.getElementById('report-log').innerHTML = logs.length === 0
+    ? '<div class="empty-state"><div class="empty-icon">📝</div><p>操作ログがありません</p></div>'
+    : `<table><thead><tr><th>日時</th><th>操作内容</th></tr></thead><tbody>${
+        logs.map(l => {
+          const d = new Date(l.ts);
+          return `<tr><td style="font-size:11px;white-space:nowrap;">${d.toLocaleString('ja-JP')}</td><td>${l.action}</td></tr>`;
+        }).join('')
+      }</tbody></table>`;
+}
+
+// ============================================================
+//  CSV EXPORT / IMPORT
+// ============================================================
+function exportCSV() {
+  const samples = DB.getSamples();
+  if (samples.length === 0) { showNotification('⚠️ エクスポートするデータがありません'); return; }
+  const headers = ['id','project','collector','institution','cruise','lat','lng','collectionDate','depth','volume','habitat','locationName','temp','salinity','filter','preservative','tempStorage','facility','expiry','aliquots','target','sequencer','accession','access','abs','conditions','registeredAt'];
+  const csv = [headers.join(','),
+    ...samples.map(s => headers.map(k => '"' + (s[k] || '').toString().replace(/"/g,'""') + '"').join(','))
+  ].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'edna_samples_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  showNotification('✅ CSVをエクスポートしました');
+}
+
+function importCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const lines = e.target.result.replace(/^\uFEFF/, '').split('\n').filter(l => l.trim());
+    if (lines.length < 2) { showNotification('⚠️ CSVの形式が正しくありません'); return; }
+    const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g,''));
+    const existing = DB.getSamples();
+    const existingIds = new Set(existing.map(s => s.id));
+    let added = 0;
+    lines.slice(1).forEach(line => {
+      const vals = line.match(/(".*?"|[^,]+)(?=,|$)/g) || [];
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = (vals[i] || '').replace(/^"|"$/g, ''); });
+      if (obj.id && !existingIds.has(obj.id)) { existing.push(obj); added++; }
+    });
+    DB.saveSamples(existing);
+    DB.addLog('CSVインポート: ' + added + '件追加');
+    showNotification('✅ ' + added + '件をインポートしました');
+    event.target.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function exportAllJSON() {
+  const all = { samples: DB.getSamples(), applications: DB.getApplications(), logs: DB.getLogs() };
+  const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'edna_all_' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  showNotification('✅ JSONデータをエクスポートしました');
+}
+
+function confirmReset() {
+  if (confirm('すべてのサンプル・申請・ログデータを削除します。この操作は取り消せません。続けますか？')) {
+    DB.reset();
+    showNotification('🗑️ データをリセットしました');
+    refreshDashboard();
+  }
+}
+
+// ============================================================
+//  FREEZER GRID
+// ============================================================
+function buildFreezerGrid() {
+  const grid = document.getElementById('freezer-grid');
+  if (!grid || grid.children.length > 0) return;
+  const states = ['full','full','partial','full','expiring','partial','empty','full','partial','full','full','partial','full','partial','full','expiring','full','partial','empty','full','full','partial','full','full','partial','full','expiring','partial','full','empty','partial','full','full','full','partial','full','partial','full','empty','partial','partial','expiring','full','full','partial','full','full','partial','empty','partial','full','full','expiring','partial','full','full','partial','full','full','partial','empty','full','partial','expiring'];
+  const labels = {full:'●',partial:'◕',empty:'○',expiring:'!'};
+  const titles = {full:'満杯',partial:'使用中',empty:'空き',expiring:'期限接近'};
+  states.forEach(s => {
+    const cell = document.createElement('div');
+    cell.className = 'freezer-cell ' + s;
+    cell.textContent = labels[s];
+    cell.title = titles[s];
+    grid.appendChild(cell);
+  });
+}
+
+// ============================================================
+//  MODALS & NOTIFICATION
+// ============================================================
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+let notifTimer;
+function showNotification(msg) {
+  const el = document.getElementById('notification');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ============================================================
+//  DUMMY DATA GENERATOR
+// ============================================================
+function generateDummyData() {
+  const locations = [
+    { name: '恩納村沖 礁斜面', lat: 26.4701, lng: 127.8701, habitat: '外礁斜面' },
+    { name: '石垣島 川平湾 礁池', lat: 24.4301, lng: 124.1501, habitat: '礁池' },
+    { name: '宮古島 八重干瀬 外礁', lat: 24.9201, lng: 125.2301, habitat: '外礁斜面' },
+    { name: '与那国島 外洋', lat: 24.4601, lng: 122.9901, habitat: '外洋域' },
+    { name: '慶良間諸島 座間味', lat: 26.2001, lng: 127.3001, habitat: '礁内' },
+    { name: '名護湾 沿岸', lat: 26.5901, lng: 127.9801, habitat: '沿岸域' },
+    { name: '沖縄本島 北部 大浦湾', lat: 26.6501, lng: 128.0401, habitat: '沿岸域' },
+    { name: '竹富島 周辺礁', lat: 24.3201, lng: 124.0801, habitat: '礁内' },
+    { name: '西表島 浦内川河口', lat: 24.2801, lng: 123.8201, habitat: '河川・湖沼' },
+    { name: '久米島 外礁斜面', lat: 26.3401, lng: 126.7901, habitat: '外礁斜面' },
+    { name: '多良間島 周辺海域', lat: 24.6601, lng: 124.7001, habitat: '礁池' },
+    { name: '南大東島 外洋', lat: 25.8301, lng: 131.2301, habitat: '外洋域' },
+    { name: '伊江島 礁斜面', lat: 26.7201, lng: 127.4701, habitat: '外礁斜面' },
+    { name: '粟国島 沿岸', lat: 26.5901, lng: 127.2301, habitat: '沿岸域' },
+    { name: '伊平屋島 北部', lat: 27.0401, lng: 127.9601, habitat: '礁内' },
+  ];
+  const institutions = ['OIST（佐藤研究室）','琉球大学','沖縄環境科学センター','JAMSTEC','土木研究所'];
+  const collectors = ['佐藤 花子','田中 一郎','山本 次郎','金城 誠','仲間 美咲','上原 健','比嘉 直子'];
+  const projects = ['沖縄イノベーション・エコシステム共同研究','サンゴ礁環境DNAアトラス','JAMSTEC eDNA連携事業','沖縄県サンゴ礁モニタリング','水産資源eDNA調査'];
+  const targets = ['有藻性サンゴ類 (ITS2)','魚類・甲殻類 (12S rRNA)','全生物（メタバーコーディング）','海藻・植物プランクトン','細菌（16S rRNA）'];
+  const filters = ['Sterivex（0.22 μm）','GFF（0.7 μm）','PolycarbonatePC（0.45 μm）'];
+  const preservatives = ['RNAlater','エタノール（99%）','緩衝液なし（乾燥）'];
+  const temps = ['-80℃（超低温）','-80℃（超低温）','-20℃'];
+  const facilities = ['OIST B棟 冷凍室 FZ-03','OIST B棟 冷凍室 FZ-04','琉大 理学部 FZ-01','沖縄環境科学センター C棟'];
+  const sequencers = ['未解析','Illumina MiSeq','Illumina MiSeq','Illumina NovaSeq','Oxford Nanopore'];
+  const accesses = ['提供可（条件なし）','提供可（条件なし）','提供可（条件なし）','条件付き（共著・報告義務）','要審査（希少種・ABS関連）'];
+  const absOptions = ['国内EEZ内（制限なし）','国内EEZ内（制限なし）','国内EEZ内（制限なし）','外国EEZ（ABS申告必要）'];
+
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+  const randFloat = (a, b, dec) => parseFloat((Math.random() * (b - a) + a).toFixed(dec));
+
+  const existing = DB.getSamples();
+  const existingIds = new Set(existing.map(s => s.id));
+  const newSamples = [];
+  const instPrefixes = {
+    'OIST（佐藤研究室）': 'OIST',
+    '琉球大学': 'RYU',
+    '沖縄環境科学センター': 'OES',
+    'JAMSTEC': 'JAM',
+    '土木研究所': 'PWR',
+  };
+
+  // 年ごとの連番管理
+  const yearCounters = {};
+  [...existing].forEach(s => {
+    const m = s.id && s.id.match(/^[A-Z]+-(\d{4})-(\d+)$/);
+    if (m) { const k = m[1]; yearCounters[k] = Math.max(yearCounters[k]||0, parseInt(m[2])); }
+  });
+
+  for (let i = 0; i < 100; i++) {
+    const inst = pick(institutions);
+    const prefix = instPrefixes[inst] || 'SMPL';
+    const year = randInt(2021, 2024);
+    yearCounters[year] = (yearCounters[year] || 0) + 1;
+    const id = prefix + '-' + year + '-' + String(yearCounters[year]).padStart(4, '0');
+    if (existingIds.has(id)) { yearCounters[year]++; continue; }
+
+    const loc = pick(locations);
+    const latJitter = randFloat(-0.05, 0.05, 4);
+    const lngJitter = randFloat(-0.05, 0.05, 4);
+    const month = randInt(1, 12);
+    const day = randInt(1, 28);
+    const hour = randInt(7, 15);
+    const collDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}T${String(hour).padStart(2,'0')}:${String(randInt(0,59)).padStart(2,'0')}`;
+    const expiryYear = year + randInt(2, 5);
+    const expiry = `${expiryYear}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    // 一部を期限接近にする
+    const isExpiring = i < 8;
+    const expiryFinal = isExpiring
+      ? (() => { const d = new Date(); d.setDate(d.getDate() + randInt(10, 80)); return d.toISOString().split('T')[0]; })()
+      : expiry;
+
+    const seq = pick(sequencers);
+    newSamples.push({
+      id,
+      project: pick(projects),
+      collector: pick(collectors),
+      institution: inst,
+      cruise: Math.random() > 0.5 ? `${loc.name.split(' ')[0]}調査クルーズ ${year}` : '',
+      lat: parseFloat((loc.lat + latJitter).toFixed(4)),
+      lng: parseFloat((loc.lng + lngJitter).toFixed(4)),
+      collectionDate: collDate,
+      depth: randInt(1, 30),
+      volume: randFloat(0.5, 4.0, 1),
+      habitat: loc.habitat,
+      locationName: loc.name,
+      temp: randFloat(24.0, 30.5, 1),
+      salinity: randFloat(33.0, 35.5, 1),
+      visibility: randInt(5, 30),
+      filter: pick(filters),
+      preservative: pick(preservatives),
+      tempStorage: pick(temps),
+      facility: pick(facilities),
+      storageDate: collDate,
+      expiry: expiryFinal,
+      aliquots: randInt(3, 15),
+      target: pick(targets),
+      sequencer: seq,
+      accession: seq !== '未解析' && Math.random() > 0.4 ? 'DRR' + randInt(100000, 999999) : '',
+      access: pick(accesses),
+      abs: pick(absOptions),
+      conditions: '',
+      geoLevel: '全公開（小数点4桁）',
+      registeredAt: new Date(collDate).toISOString(),
+    });
+    existingIds.add(id);
+  }
+
+  const all = [...existing, ...newSamples];
+  DB.saveSamples(all);
+  DB.addLog('ダミーデータ生成: ' + newSamples.length + '件追加（合計 ' + all.length + '件）');
+  showNotification('✅ ダミーデータを ' + newSamples.length + '件生成しました（合計 ' + all.length + '件）');
+  refreshDashboard();
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('f-event-id').value = DB.generateId();
+  showPage('dashboard');
+});
+</script>
+</body>
+</html>
