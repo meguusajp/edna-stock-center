@@ -961,14 +961,9 @@ const DB = {
 
   // ── 手動同期（ボタン押下時） ──────────────────────────────
   async manualSync() {
-    const pulled = await this.pull();
-    if (pulled) {
-      showNotification('🔄 GitHubからデータを同期しました');
-      refreshDashboard();
-    } else {
-      await this.push('手動同期');
-      showNotification('✅ GitHubへ保存しました');
-    }
+    // Push local data to GitHub (local wins on manual sync)
+    await this.push('手動同期');
+    showNotification('✅ GitHubへ保存しました');
   },
 };
 
