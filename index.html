@@ -907,10 +907,13 @@ const DB = {
 
   async push(message) {
     if (!this.GITHUB.token) { this.setSyncStatus('local'); return false; }
+    // 空データで上書きしない（安全ガード）
+    const samples = this.getSamples();
+    if (samples.length === 0) { console.warn('Push skipped: no samples to push'); return false; }
     this.setSyncStatus('syncing');
     try {
       const data = {
-        samples:      this.getSamples(),
+        samples,
         applications: this.getApplications(),
         logs:         this.getLogs(),
         updatedAt:    new Date().toISOString(),
@@ -957,16 +960,14 @@ const DB = {
 
   // ── 手動同期（ボタン押下時） ──────────────────────────────
   async manualSync() {
-    // まず GitHub から最新を取得
+    // 手動同期 = GitHub から最新を取得するだけ（pushしない）
+    // データの書き込みはサンプル登録・編集時のみ自動で行われる
     const pulled = await this.pull();
     if (pulled) {
       showNotification('🔄 GitHubからデータを取得しました');
       refreshDashboard();
-    }
-    // トークンがある場合のみ push（書き込み権限が必要）
-    if (this.GITHUB.token) {
-      await this.push('手動同期');
-      showNotification('✅ GitHubへ保存しました');
+    } else {
+      showNotification('ℹ️ GitHubにデータがありません');
     }
   },
 };
