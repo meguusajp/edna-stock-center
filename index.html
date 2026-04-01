@@ -651,33 +651,54 @@
       <div class="section-title">データ設定</div>
       <div class="section-sub">保管方式の確認・データのエクスポート／インポート・リセット</div>
 
-      <!-- GitHub Sync Settings -->
-      <div class="card" id="github-settings-card">
-        <div class="card-title">🔗 GitHub 同期設定</div>
+      <!-- Supabase Sync Settings -->
+      <div class="card" id="supabase-settings-card">
+        <div class="card-title">🗄️ Supabase データベース設定</div>
         <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
-          GitHub リポジトリをデータストレージとして使用することで、複数機関・複数デバイス間でデータを共有できます。
+          Supabase（無料クラウドDB）を使うと、複数機関・複数デバイスでデータをリアルタイム共有できます。<br>
+          Aさんが登録したデータを、BさんがURLを開くだけで確認できます。
         </p>
-        <div id="github-token-status" style="margin-bottom:14px;"></div>
-        <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-bottom:14px;">
-          <div style="flex:1; min-width:220px;">
-            <label style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px;">GitHub Personal Access Token (PAT)</label>
-            <input type="password" id="github-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-              style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:monospace; background:var(--bg);">
+        <div id="sb-status" style="margin-bottom:14px;"></div>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;">
+          <div>
+            <label style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px;">Project URL</label>
+            <input type="text" id="sb-url-input" placeholder="https://xxxxxxxxxx.supabase.co"
+              style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:monospace; background:var(--bg);">
           </div>
-          <button class="btn btn-primary" onclick="saveGitHubToken()" style="white-space:nowrap;">💾 保存して同期</button>
-          <button class="btn btn-danger" onclick="clearGitHubToken()" style="white-space:nowrap;">🗑️ トークン削除</button>
+          <div>
+            <label style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px;">Anon (public) Key</label>
+            <input type="password" id="sb-key-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:monospace; background:var(--bg);">
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="saveSupabaseSettings()">💾 保存して接続</button>
+            <button class="btn btn-accent" onclick="pushAllToSupabase()">📤 ローカルデータをSupabaseへ送信</button>
+            <button class="btn btn-danger" onclick="clearSupabaseSettings()">🗑️ 設定削除</button>
+          </div>
         </div>
         <details style="font-size:12px; color:var(--text-muted);">
-          <summary style="cursor:pointer; font-weight:600; margin-bottom:6px;">📖 PATの取得方法</summary>
-          <ol style="margin:8px 0 0 16px; line-height:1.8;">
-            <li>GitHub にログイン → 右上アイコン → <strong>Settings</strong></li>
-            <li>左メニュー最下部 → <strong>Developer settings</strong></li>
-            <li><strong>Personal access tokens → Tokens (classic)</strong></li>
-            <li><strong>Generate new token (classic)</strong> をクリック</li>
-            <li>Note に名前を入力、Expiration を設定、<strong>repo</strong> にチェック</li>
-            <li><strong>Generate token</strong> → 表示されたトークンをコピーして上に貼り付け</li>
+          <summary style="cursor:pointer; font-weight:600; margin-bottom:8px;">📖 Supabase 初回セットアップ手順</summary>
+          <ol style="margin:8px 0 0 16px; line-height:2;">
+            <li><a href="https://supabase.com" target="_blank">supabase.com</a> でアカウント作成（無料）</li>
+            <li>「New project」でプロジェクトを作成（リージョン: Northeast Asia 推奨）</li>
+            <li>左メニュー「SQL Editor」を開き、下のSQLを貼り付けて「Run」</li>
+            <li>左メニュー「Project Settings → API」でURLとAnon Keyをコピー</li>
+            <li>上のフォームに貼り付けて「💾 保存して接続」</li>
           </ol>
-          <p style="margin-top:8px;">⚠️ トークンはブラウザの localStorage に保存され、外部に送信されません（GitHub API との通信のみ）。</p>
+          <div style="margin-top:10px; background:#1e293b; color:#e2e8f0; padding:12px; border-radius:6px; font-family:monospace; font-size:11px; white-space:pre; overflow-x:auto;">CREATE TABLE samples (
+  id TEXT PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE applications (
+  id TEXT PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE samples ENABLE ROW LEVEL SECURITY;
+ALTER TABLE applications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON samples FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON applications FOR ALL USING (true) WITH CHECK (true);</div>
         </details>
       </div>
 
@@ -796,24 +817,36 @@
 const DB = {
   KEYS: { samples: 'edna_samples', applications: 'edna_applications', logs: 'edna_logs' },
 
-  // ── GitHub 設定（トークンはlocalStorageから取得） ──────────
-  GITHUB: {
-    get token() { return localStorage.getItem('edna_github_token') || ''; },
-    repo:  'meguusajp/edna-stock-center',
-    file:  'data.json',
-    branch:'main',
+  // ── Supabase 設定（URLとAnon KeyはlocalStorageから取得） ──
+  SB: {
+    get url()  { return (localStorage.getItem('edna_sb_url') || '').replace(/\/$/, ''); },
+    get key()  { return localStorage.getItem('edna_sb_key') || ''; },
   },
-  _ghSha: null,
-  _pushTimer: null,
+  get _sbReady() { return !!(this.SB.url && this.SB.key); },
 
-  // ── ローカル読み書き ───────────────────────────────────────
+  // Supabase REST API ヘルパー
+  async _sbFetch(table, { method='GET', params='', body=null, prefer='' } = {}) {
+    const r = await fetch(`${this.SB.url}/rest/v1/${table}${params}`, {
+      method,
+      headers: {
+        'apikey':        this.SB.key,
+        'Authorization': `Bearer ${this.SB.key}`,
+        'Content-Type':  'application/json',
+        ...(prefer ? { 'Prefer': prefer } : {}),
+      },
+      ...(body != null ? { body: JSON.stringify(body) } : {}),
+    });
+    if (!r.ok) { const t = await r.text(); throw new Error(`SB ${method} ${table}: ${r.status} ${t}`); }
+    return method === 'GET' ? r.json() : null;
+  },
+
+  // ── ローカル読み書き ──────────────────────────────────────
   getSamples() {
     try { return JSON.parse(localStorage.getItem(this.KEYS.samples) || '[]'); }
     catch(e) { return []; }
   },
   saveSamples(data) {
     localStorage.setItem(this.KEYS.samples, JSON.stringify(data));
-    this._deferredPush('サンプルデータ更新');
   },
 
   getApplications() {
@@ -822,7 +855,6 @@ const DB = {
   },
   saveApplications(data) {
     localStorage.setItem(this.KEYS.applications, JSON.stringify(data));
-    this._deferredPush('申請データ更新');
   },
 
   getLogs() {
@@ -835,17 +867,35 @@ const DB = {
     localStorage.setItem(this.KEYS.logs, JSON.stringify(logs.slice(0, 200)));
   },
 
+  // サンプル追加 — localStorageに保存 + Supabaseに即時UPSERT
   addSample(s) {
     const samples = this.getSamples();
     samples.push(s);
     this.saveSamples(samples);
     this.addLog('入庫登録: ' + s.id + '（' + s.locationName + ' / ' + s.institution + '）');
+    if (this._sbReady) {
+      this.setSyncStatus('syncing');
+      this._sbFetch('samples', {
+        method: 'POST', params: '?on_conflict=id',
+        body: { id: s.id, data: s },
+        prefer: 'resolution=merge-duplicates,return=minimal',
+      }).then(() => this.setSyncStatus('synced'))
+        .catch(e => { console.error('addSample push:', e); this.setSyncStatus('error'); });
+    }
+  },
+
+  // 申請をSupabaseに保存
+  _pushApplication(app) {
+    if (!this._sbReady) return;
+    this._sbFetch('applications', {
+      method: 'POST', params: '?on_conflict=id',
+      body: { id: app.id, data: app },
+      prefer: 'resolution=merge-duplicates,return=minimal',
+    }).catch(e => console.error('pushApplication:', e));
   },
 
   reset() {
     Object.values(this.KEYS).forEach(k => localStorage.removeItem(k));
-    this._ghSha = null;
-    this._deferredPush('データリセット');
   },
 
   generateId() {
@@ -863,96 +913,32 @@ const DB = {
     const badge = document.getElementById('storage-mode-badge');
     if (!badge) return;
     const map = {
-      local:   ['💾 ブラウザ保存中',  '#fef3c7','#92400e','#fde047'],
-      syncing: ['🔄 GitHub同期中…',   '#d0eaf3','#064e63','#93c5fd'],
-      synced:  ['✅ GitHub同期済',    '#d1fae5','#065f46','#6ee7b7'],
-      error:   ['❌ 同期エラー',       '#fee2e2','#991b1b','#fca5a5'],
+      local:   ['💾 ブラウザ保存中', '#fef3c7','#92400e','#fde047'],
+      syncing: ['🔄 同期中…',        '#d0eaf3','#064e63','#93c5fd'],
+      synced:  ['✅ 同期済み',        '#d1fae5','#065f46','#6ee7b7'],
+      error:   ['❌ 同期エラー',      '#fee2e2','#991b1b','#fca5a5'],
     };
     const [text, bg, color, border] = map[status] || map.local;
     badge.textContent = text;
     Object.assign(badge.style, { background: bg, color, borderColor: border });
   },
 
-  // ── GitHub Pull（起動時・手動同期） ───────────────────────
+  // ── Supabase Pull（起動時・手動同期） ────────────────────
   async pull() {
+    if (!this._sbReady) { this.setSyncStatus('local'); return false; }
     this.setSyncStatus('syncing');
     try {
-      const url = `https://api.github.com/repos/${this.GITHUB.repo}/contents/${this.GITHUB.file}`;
-      // トークンなしでも public リポジトリなら読み取り可能
-      const headers = { 'Accept': 'application/vnd.github.v3+json', 'Cache-Control': 'no-cache' };
-      if (this.GITHUB.token) headers['Authorization'] = `token ${this.GITHUB.token}`;
-      const r = await fetch(url, { headers });
-      if (r.status === 404) { this.setSyncStatus('synced'); return false; }
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const d = await r.json();
-      this._ghSha = d.sha;
-      const json = JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g, '')))));
-      if (json.samples)      localStorage.setItem(this.KEYS.samples,      JSON.stringify(json.samples));
-      if (json.applications) localStorage.setItem(this.KEYS.applications, JSON.stringify(json.applications));
-      if (json.logs)         localStorage.setItem(this.KEYS.logs,         JSON.stringify(json.logs));
+      const rows = await this._sbFetch('samples', { params: '?select=id,data&order=created_at.asc' });
+      const samples = rows.map(r => r.data);
+      this.saveSamples(samples);
+      try {
+        const appRows = await this._sbFetch('applications', { params: '?select=id,data&order=created_at.asc' });
+        this.saveApplications(appRows.map(r => r.data));
+      } catch(e) { /* applications テーブルが未作成の場合は無視 */ }
       this.setSyncStatus('synced');
-      return true;
+      return samples.length > 0;
     } catch(e) {
-      console.error('GitHub pull error:', e);
-      this.setSyncStatus('error');
-      return false;
-    }
-  },
-
-  // ── GitHub Push（保存のたびに遅延実行） ───────────────────
-  _deferredPush(msg) {
-    clearTimeout(this._pushTimer);
-    this._pushTimer = setTimeout(() => this.push(msg), 2000);
-  },
-
-  async push(message) {
-    if (!this.GITHUB.token) { this.setSyncStatus('local'); return false; }
-    // 空データで上書きしない（安全ガード）
-    const samples = this.getSamples();
-    if (samples.length === 0) { console.warn('Push skipped: no samples to push'); return false; }
-    this.setSyncStatus('syncing');
-    try {
-      const data = {
-        samples,
-        applications: this.getApplications(),
-        logs:         this.getLogs(),
-        updatedAt:    new Date().toISOString(),
-      };
-      const jsonStr  = JSON.stringify(data, null, 2);
-      const content  = btoa(unescape(encodeURIComponent(jsonStr)));
-      const url      = `https://api.github.com/repos/${this.GITHUB.repo}/contents/${this.GITHUB.file}`;
-
-      // SHA が不明な場合は最新を取得してから上書き
-      if (!this._ghSha) {
-        const chk = await fetch(url, {
-          headers: { 'Authorization': `token ${this.GITHUB.token}`, 'Accept': 'application/vnd.github.v3+json' }
-        });
-        if (chk.ok) { const cd = await chk.json(); this._ghSha = cd.sha; }
-      }
-
-      const body = { message: message || 'eDNA data update', content, branch: this.GITHUB.branch };
-      if (this._ghSha) body.sha = this._ghSha;
-
-      const r = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `token ${this.GITHUB.token}`,
-          'Content-Type':  'application/json',
-          'Accept':        'application/vnd.github.v3+json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (r.ok) {
-        const rd = await r.json();
-        this._ghSha = rd.content.sha;
-        this.setSyncStatus('synced');
-        return true;
-      }
-      if (r.status === 409) { this._ghSha = null; return this.push(message); } // 競合→再試行
-      throw new Error('HTTP ' + r.status);
-    } catch(e) {
-      console.error('GitHub push error:', e);
+      console.error('Supabase pull error:', e);
       this.setSyncStatus('error');
       return false;
     }
@@ -960,14 +946,43 @@ const DB = {
 
   // ── 手動同期（ボタン押下時） ──────────────────────────────
   async manualSync() {
-    // 手動同期 = GitHub から最新を取得するだけ（pushしない）
-    // データの書き込みはサンプル登録・編集時のみ自動で行われる
+    if (!this._sbReady) {
+      showNotification('⚠️ Supabase未設定。データ設定でURLとキーを入力してください。');
+      return;
+    }
     const pulled = await this.pull();
-    if (pulled) {
-      showNotification('🔄 GitHubからデータを取得しました');
-      refreshDashboard();
-    } else {
-      showNotification('ℹ️ GitHubにデータがありません');
+    showNotification(pulled ? '🔄 Supabaseから最新データを取得しました' : 'ℹ️ Supabaseにデータがありません');
+    refreshDashboard();
+  },
+
+  // ── 既存ローカルデータを一括でSupabaseへ送信 ─────────────
+  async pushAll() {
+    if (!this._sbReady) return false;
+    const samples = this.getSamples();
+    if (samples.length === 0) return false;
+    this.setSyncStatus('syncing');
+    try {
+      for (let i = 0; i < samples.length; i += 100) {
+        await this._sbFetch('samples', {
+          method: 'POST', params: '?on_conflict=id',
+          body: samples.slice(i, i + 100).map(s => ({ id: s.id, data: s })),
+          prefer: 'resolution=merge-duplicates,return=minimal',
+        });
+      }
+      const apps = this.getApplications();
+      if (apps.length > 0) {
+        await this._sbFetch('applications', {
+          method: 'POST', params: '?on_conflict=id',
+          body: apps.map(a => ({ id: a.id, data: a })),
+          prefer: 'resolution=merge-duplicates,return=minimal',
+        });
+      }
+      this.setSyncStatus('synced');
+      return true;
+    } catch(e) {
+      console.error('pushAll error:', e);
+      this.setSyncStatus('error');
+      return false;
     }
   },
 };
@@ -1020,7 +1035,7 @@ function showPage(name) {
   if (name === 'applications') renderApplications();
   if (name === 'search') { runSearch(); }
   if (name === 'reports') refreshReports();
-  if (name === 'datasettings') renderGitHubTokenStatus();
+  if (name === 'datasettings') renderSupabaseStatus();
 }
 
 // ============================================================
@@ -1328,6 +1343,7 @@ function submitApplication() {
     submittedAt: new Date().toISOString(),
   });
   DB.saveApplications(apps);
+  DB._pushApplication(apps[apps.length - 1]);
   DB.addLog('利用申請: ' + reqId + '（' + document.getElementById('app-name').value + '）');
   cart.clear(); updateCartUI();
   closeModal('application-modal');
@@ -1485,48 +1501,62 @@ function confirmReset() {
 }
 
 // ============================================================
-//  GITHUB TOKEN SETTINGS
+//  SUPABASE SETTINGS
 // ============================================================
-function renderGitHubTokenStatus() {
-  const el = document.getElementById('github-token-status');
+function renderSupabaseStatus() {
+  const el = document.getElementById('sb-status');
   if (!el) return;
-  const token = localStorage.getItem('edna_github_token') || '';
-  if (token) {
-    const masked = token.substring(0, 8) + '••••••••••••••••' + token.slice(-4);
-    el.innerHTML = `<div class="alert" style="background:#e8f5e9; border:1px solid #66bb6a; color:#2e7d32; padding:10px 14px; border-radius:6px;">
-      ✅ <strong>トークン設定済み</strong>：<code style="font-size:12px;">${masked}</code><br>
-      <span style="font-size:12px;">GitHub 同期が有効です。変更する場合は下のフィールドに新しいトークンを入力してください。</span>
+  const url = localStorage.getItem('edna_sb_url') || '';
+  const key = localStorage.getItem('edna_sb_key') || '';
+  if (url && key) {
+    const shortUrl = url.replace('https://', '').split('.')[0];
+    el.innerHTML = `<div style="background:#e8f5e9;border:1px solid #66bb6a;color:#2e7d32;padding:10px 14px;border-radius:6px;font-size:13px;">
+      ✅ <strong>Supabase 接続済み</strong>：<code>${shortUrl}.supabase.co</code><br>
+      <span style="font-size:12px;">複数人でのデータ共有が有効です。</span>
     </div>`;
   } else {
-    el.innerHTML = `<div class="alert alert-warning" style="padding:10px 14px;">
-      ⚠️ <strong>トークン未設定</strong>：データはブラウザ内にのみ保存されます。
+    el.innerHTML = `<div class="alert alert-warning" style="padding:10px 14px;font-size:13px;">
+      ⚠️ <strong>未設定</strong>：データはこのブラウザ内にのみ保存されます。下の手順でSupabaseを設定すると共有できます。
     </div>`;
   }
 }
 
-function saveGitHubToken() {
-  const input = document.getElementById('github-token-input');
-  const token = (input.value || '').trim();
-  if (!token) { showNotification('⚠️ トークンを入力してください', 'warn'); return; }
-  if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
-    if (!confirm('入力値がGitHub PATの形式（ghp_ または github_pat_）と異なります。このまま保存しますか？')) return;
+function saveSupabaseSettings() {
+  const url = (document.getElementById('sb-url-input').value || '').trim();
+  const key = (document.getElementById('sb-key-input').value || '').trim();
+  if (!url || !key) { showNotification('⚠️ URLとKeyの両方を入力してください'); return; }
+  if (!url.includes('supabase.co')) {
+    if (!confirm('URLが supabase.co ドメインではありません。このまま保存しますか？')) return;
   }
-  localStorage.setItem('edna_github_token', token);
-  input.value = '';
-  renderGitHubTokenStatus();
-  showNotification('🔗 トークンを保存しました。GitHubと同期中...');
+  localStorage.setItem('edna_sb_url', url);
+  localStorage.setItem('edna_sb_key', key);
+  document.getElementById('sb-url-input').value = '';
+  document.getElementById('sb-key-input').value = '';
+  renderSupabaseStatus();
+  showNotification('🔗 Supabase設定を保存しました。接続確認中...');
   DB.pull().then(ok => {
-    if (ok) showNotification('✅ GitHub から最新データを取得しました');
-    else DB.push('Initial sync from settings');
+    if (ok) { showNotification('✅ Supabaseからデータを取得しました'); refreshDashboard(); }
+    else showNotification('ℹ️ 接続成功。まだデータがありません。');
   });
 }
 
-function clearGitHubToken() {
-  if (!confirm('GitHubトークンを削除します。以後、データはブラウザ内にのみ保存されます。続けますか？')) return;
-  localStorage.removeItem('edna_github_token');
-  renderGitHubTokenStatus();
+async function pushAllToSupabase() {
+  if (!DB._sbReady) { showNotification('⚠️ 先にSupabase設定を保存してください'); return; }
+  const count = DB.getSamples().length;
+  if (count === 0) { showNotification('⚠️ ローカルにデータがありません'); return; }
+  if (!confirm(`ローカルの${count}件をSupabaseへ送信します。よろしいですか？`)) return;
+  showNotification('📤 送信中...');
+  const ok = await DB.pushAll();
+  showNotification(ok ? `✅ ${count}件をSupabaseへ送信しました` : '❌ 送信に失敗しました');
+}
+
+function clearSupabaseSettings() {
+  if (!confirm('Supabase設定を削除します。データはブラウザ内にのみ保存されます。続けますか？')) return;
+  localStorage.removeItem('edna_sb_url');
+  localStorage.removeItem('edna_sb_key');
+  renderSupabaseStatus();
   DB.setSyncStatus('local');
-  showNotification('🗑️ トークンを削除しました');
+  showNotification('🗑️ Supabase設定を削除しました');
 }
 
 // ============================================================
